@@ -9,7 +9,7 @@
 *Summary of what was discussed during the meeting*
 
 ### Action points
-*List here the actions points discussed with assistants*
+Fix the concepts and their relations in the deadline 1.
 
 
 ### Comments from staff

@@ -13,6 +13,8 @@ Python version 3.6.8
 
 Following python libraries:
 flask version 1.0.2
+
 flask-sqlalchemy
+
 pysqlite3
 

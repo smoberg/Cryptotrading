@@ -8,7 +8,7 @@ db = SQLAlchemy(app)
 
 class Orders(db.Model):
     API_key = db.Column(db.String(24), nullable=False)
-    Order_id = db.Column(db.String(36), nullable=False)
+    Order_id = db.Column(db.String(36), nullable=False, primary_key=True)
     Order_size = db.Column(db.Integer, nullable=False)
     Order_side = db.Column(db.String(4), nullable=False)
     Order_symbol = db.Column(db.String(10), nullable=False)

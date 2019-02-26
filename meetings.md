@@ -6,7 +6,7 @@
 * **GRADE:** *To be filled by course staff*
 
 ### Minutes
-*Summary of what was discussed during the meeting*
+Talked about what are the concepts and how we should fix the diagram to reflect concepts and their relations
 
 ### Action points
 Fix the concepts and their relations in the deadline 1.
@@ -21,10 +21,10 @@ Fix the concepts and their relations in the deadline 1.
 * **GRADE:** *To be filled by course staff*
 
 ### Minutes
-*Summary of what was discussed during the meeting*
+Database is a simple one, should add another table with a foreign key relationship to gain more points
 
 ### Action points
-*List here the actions points discussed with assistants*
+optionally add a new table
 
 
 ### Comments from staff

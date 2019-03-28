@@ -39,20 +39,19 @@ optionally add a new table
 *Summary of what was discussed during the meeting*
 
 ### Action points
+- Specify order history what it is.
+- Price action query variable, explain better
+- Include api entry point in the state diagram
+- Each uniform method has to be used twice, need one POST and DELETE still. Need at least one of the other. Adding new accounts is one example.
+- Statelesness, usage of the api key?
 
-Specify order history what it is.
-
-price action query variable, explain better
-
-Include api entry point in the state diagram
-
-Each uniform method has to be used twice, need one POST and DELETE still. Need at least one of the other. Adding new accounts is one example.
 
 APIARY STUFF
 - Remove the post method in mason controls in root
 - Add mason controls to rest of the resources.
 - Add errors to responses.
 - Add GET to single order.
+- Profile links
 
 ### Comments from staff
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*

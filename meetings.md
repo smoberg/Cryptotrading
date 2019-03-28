@@ -52,7 +52,7 @@ APIARY STUFF
 - Remove the post method in mason controls in root
 - Add mason controls to rest of the resources.
 - Add errors to responses.
-- Add GET on to single order.
+- Add GET to single order.
 
 ### Comments from staff
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*

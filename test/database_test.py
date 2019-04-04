@@ -1,4 +1,8 @@
-from database import db, Orders
+from cryptotrading_api import create_app, db
+from cryptotrading_api.db_models import Orders
+app = create_app()
+app.app_context().push()
+db.create_all()
 
 def modify(order):
   order.Order_size = 1000
@@ -13,7 +17,7 @@ def delete(order):
     db.session.commit()
 
 def main():
-    db.create_all()
+    
 
     #add order to database
     Order = Orders(API_key='abcdefghijklmnopqrstuvxy', Order_id='00000000-0000-0000-0000-000000000000', Order_size=1, Order_side='Buy', Order_symbol="XBTUSD")

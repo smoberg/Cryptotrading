@@ -1,2 +1,0 @@
-graft cryptotrading_api/static
-global-exclude *.pyc

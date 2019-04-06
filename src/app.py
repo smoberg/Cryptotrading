@@ -19,12 +19,6 @@ class MasonControls(MasonBuilder):
     def add_control_asd(self):
         pass
 
-api.add_resource(AccountInformation,"/account/{apikey}")
-api.add_resource(Orders,"/orders/{apikey}")
-api.add_resource(PriceAction, "/priceaction/")
-api.add_resource(Positions, "positions/{apikey}")
-api.add_resource(OrderBook, "/orderbook/")
-
 @app.route("/", methods=["GET"])
 def entrypoint():
     body = MasonControls()
@@ -73,6 +67,14 @@ class Positions(Resource):
 class Position(Resource):
     def get(self):
         return Response(status=503)
+
+
+api.add_resource(AccountInformation,"/account/{apikey}")
+api.add_resource(OrdersResource,"/orders/{apikey}")
+api.add_resource(PriceAction, "/priceaction/")
+api.add_resource(Positions, "/positions/{apikey}")
+api.add_resource(OrderBook, "/orderbook/")
+
 
 def create_error_response(status_code, title, message=None):
     resource_url = request.path

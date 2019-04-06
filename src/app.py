@@ -16,17 +16,45 @@ api = Api(app)
 
 class MasonControls(MasonBuilder):
     # attaches mason hypermedia controls to response bodies
-    def add_control_asd(self):
-        pass
+    def add_control_account(self):
+        self.add_control("account", href=api.url_for(AccountInformation),
+                        method="GET",
+                        title="Get general account information")
 
+    def add_control_orders(self):
+        self.add_control("orders", href=api.url_for(OrdersResource),
+                        method="GET",
+                        title="Get open orders")
+
+    def add_control_orderbook(self):
+        self.add_control("orderbook", href=api.url_for(OrderBook),
+                        method="GET",
+                        title="Get order book data")
+
+    def add_control_priceaction(self):
+        self.add_control("priceaction", href=api.url_for(PriceAction),
+                        method="GET",
+                        title="Show recent trades that happened in the market")
+
+    def add_control_positions(self):
+        self.add_control("positions", href=api.url_for(Positions),
+                        method="GET",
+                        title="Get open positions")
+
+#apikeyt pitää lisätä
 @app.route("/", methods=["GET"])
 def entrypoint():
     body = MasonControls()
+    body.add_control_account()
+    body.add_control_orders()
+    body.add_control_orderbook()
+    body.add_control_priceaction()
+    body.add_control_positions()
     return Response(json.dumps(body), status=200, mimetype=MASON)
 
 class AccountInformation(Resource):
-    def get(self):
-        return Response(status=503)
+    def get(self, apikey):
+        return Response(apikey, status=503)
 
 class AccountBalance(Resource):
     def get(self):
@@ -69,10 +97,10 @@ class Position(Resource):
         return Response(status=503)
 
 
-api.add_resource(AccountInformation,"/account/{apikey}")
-api.add_resource(OrdersResource,"/orders/{apikey}")
+api.add_resource(AccountInformation,"/account/")
+api.add_resource(OrdersResource,"/orders/")
 api.add_resource(PriceAction, "/priceaction/")
-api.add_resource(Positions, "/positions/{apikey}")
+api.add_resource(Positions, "/positions/")
 api.add_resource(OrderBook, "/orderbook/")
 
 

@@ -115,7 +115,24 @@ class OrderBook(Resource):
 
 class PriceAction(Resource):
     def get(self):
-        return Response(status=503)
+        if not request.args:
+            return create_error_response(400, "Query Error", 'Missing Query Parameter "symbol"')
+        try:
+            if request.args["symbol"]:
+                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=request.args["symbol"], api_key=None, api_secret=None)
+                trades = []
+                trades = ws.recent_trades()
+                for trade in trades:
+                    trade.pop("timestamp")
+                    trade.pop("tickDirection")
+                    trade.pop("trdMatchID")
+                    trade.pop("homeNotional")
+                    trade.pop("foreignNotional")
+                    trade.pop("grossValue")
+
+                return Response(json.dumps(trades), status=200, mimetype="application/json")
+        except:
+            return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 class BucketedPriceAction(Resource):
     def get(self):
@@ -142,5 +159,5 @@ def create_error_response(status_code, title, message=None):
     resource_url = request.path
     body = MasonBuilder(resource_url=resource_url)
     body.add_error(title, message)
-    body.add_control("profile", href=ERROR_PROFILE)
+    #body.add_control("profile", href=ERROR_PROFILE)
     return Response(json.dumps(body), status_code, mimetype=MASON)

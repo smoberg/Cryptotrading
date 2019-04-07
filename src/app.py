@@ -41,6 +41,7 @@ class MasonControls(MasonBuilder):
         self.add_control("positions", href=api.url_for(Positions),
                         method="GET",
                         title="Get open positions")
+
     def add_control_accountbalance(self):
         self.add_control("balance", href=api.url_for(AccountBalance),
                         method="GET",

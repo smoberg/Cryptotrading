@@ -5,14 +5,15 @@ from flask_restful import Resource, Api
 from jsonschema import validate, ValidationError
 from utils import MasonBuilder
 import json
+from bitmex_websocket import BitMEXWebsocket
 
 MASON = "application/vnd.mason+json"
-
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 api = Api(app)
+# ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD", api_key=None, api_secret=None)
 
 class MasonControls(MasonBuilder):
     # attaches mason hypermedia controls to response bodies
@@ -40,8 +41,17 @@ class MasonControls(MasonBuilder):
         self.add_control("positions", href=api.url_for(Positions),
                         method="GET",
                         title="Get open positions")
+    def add_control_accountbalance(self):
+        self.add_control("balance", href=api.url_for(AccountBalance),
+                        method="GET",
+                        title="Get account balance")
 
-#apikeyt pitää lisätä
+    def add_control_transactionhistory(self):
+        self.add_control("transactions", href=api.url_for(TransactionHistory),
+                        method="GET",
+                        title="Get history of the wallet transactions")
+
+
 @app.route("/", methods=["GET"])
 def entrypoint():
     body = MasonControls()
@@ -53,16 +63,38 @@ def entrypoint():
     return Response(json.dumps(body), status=200, mimetype=MASON)
 
 class AccountInformation(Resource):
-    def get(self, apikey):
-        return Response(apikey, status=503)
+    def get(self):
+        # sends request to bitmex websocket api, retrieves Response
+        # Parses response
+        # Adds json controls to body
+        # Return response
+        # pitääköhä olla controlli takasin entrypointtii?
+
+        body = MasonControls()
+        body.add_control_orders()
+        body.add_control_accountbalance()
+        body.add_control_positions()
+        body.add_control_transactionhistory()
+
+        return Response(body, status=200, mimetype=MASON)
 
 class AccountBalance(Resource):
     def get(self):
-        return Response(status=503)
+
+
+        body = MasonControls()
+        body.add_control_account()
+        body.add_control_transactionhistory()
+        return Response(body, status=200, mimetype=MASON)
 
 class TransactionHistory(Resource):
     def get(self):
-        return Response(status=503)
+
+
+        body = MasonControls()
+        body.add_control_account()
+        body.add_control_accountbalance()
+        return Response(body, status=200, mimetype=MASON)
 
 class OrdersResource(Resource):
     def get(self):
@@ -102,7 +134,8 @@ api.add_resource(OrdersResource,"/orders/")
 api.add_resource(PriceAction, "/priceaction/")
 api.add_resource(Positions, "/positions/")
 api.add_resource(OrderBook, "/orderbook/")
-
+api.add_resource(TransactionHistory, "/account/history/")
+api.add_resource(AccountBalance, "/account/balance/")
 
 def create_error_response(status_code, title, message=None):
     resource_url = request.path

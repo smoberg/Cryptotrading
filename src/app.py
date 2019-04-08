@@ -6,14 +6,16 @@ from jsonschema import validate, ValidationError
 from utils import MasonBuilder
 import json
 from bitmex_websocket import BitMEXWebsocket
+from database import db, User, Orders
 
 MASON = "application/vnd.mason+json"
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
 api = Api(app)
-# ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD", api_key=None, api_secret=None)
+db.init_app(app)
+with app.app_context():
+    db.create_all()
 
 class MasonControls(MasonBuilder):
     # attaches mason hypermedia controls to response bodies
@@ -91,10 +93,10 @@ class MasonControls(MasonBuilder):
 def entrypoint():
     body = MasonControls()
     body.add_control_add_account()
-    body.add_control_orders()
+    # body.add_control_orders()
     body.add_control_orderbook()
     body.add_control_priceaction()
-    body.add_control_positions()
+    # body.add_control_positions()
     return Response(json.dumps(body), status=200, mimetype=MASON)
 
 class Account(Resource):
@@ -131,7 +133,11 @@ class AccountInformation(Resource):
         # Return response
         # pitääköhä olla controlli takasin entrypointtii?
         acc = User.query.filter_by(api_public=apikey).first()
-        authorize(acc, request)
+        if not acc:
+            return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
+        # authorized = authorize(acc, request)
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "need secret api-key in the http header")
         body = MasonControls(accountname=acc.username, api_public=acc.api_public, api_secret=acc.api_secret)
         body.add_control("self", api.url_for(AccountInformation, apikey=apikey))
         body.add_control_orders(apikey)
@@ -154,11 +160,14 @@ class AccountInformation(Resource):
 def authorize(model, request):
     # takes in user model and request object
     # compares request object's api key to the saved api key in the database
-    if not request.headers["api_secret"]:
-        return create_error_response(401, "Unauthorized", "need secret api-key in the http header")
-    if request.headers["api_secret"] != model.api_secret:
-        return create_error_response(401, "Unauthorized", "Wrong api-key")
-    pass
+    try:
+         secret = request.headers["api_secret"]
+    except KeyError:
+        return False
+    if secret != model.api_secret:
+        return False
+    else:
+        return True
 
 class AccountBalance(Resource):
     def get(self):
@@ -212,12 +221,12 @@ class Position(Resource):
 
 api.add_resource(Account,"/account/")
 api.add_resource(AccountInformation,"/account/<apikey>")
-api.add_resource(OrdersResource,"/orders/")
+api.add_resource(OrdersResource,"/orders/<apikey>")
 api.add_resource(PriceAction, "/priceaction/")
-api.add_resource(Positions, "/positions/")
+api.add_resource(Positions, "/positions/<apikey>")
 api.add_resource(OrderBook, "/orderbook/")
-api.add_resource(TransactionHistory, "/account/history/")
-api.add_resource(AccountBalance, "/account/balance/")
+api.add_resource(TransactionHistory, "/account/history/<apikey>")
+api.add_resource(AccountBalance, "/account/balance/<apikey>")
 
 def create_error_response(status_code, title, message=None):
     resource_url = request.path

@@ -93,6 +93,7 @@ class MasonControls(MasonBuilder):
 def entrypoint():
     body = MasonControls()
     body.add_control_add_account()
+
     # body.add_control_orders()
     body.add_control_orderbook()
     body.add_control_priceaction()
@@ -102,6 +103,7 @@ def entrypoint():
 class Account(Resource):
     def get(self):
         # add control to entrypoint maybe
+        # and controls to resources which don't need authentication
         body = MasonControls()
         body.add_control_add_account()
         return Response(json.dumps(body), status=200, mimetype=MASON)
@@ -131,7 +133,8 @@ class AccountInformation(Resource):
         # Parses response
         # Adds json controls to body
         # Return response
-        # pitääköhä olla controlli takasin entrypointtii?
+        # control back to entrypoint?
+        # communication with bitmex websocket api might not be necessary
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
@@ -156,6 +159,9 @@ class AccountInformation(Resource):
         db.session.commit()
         return Response(status=204)
 
+    def put(self, apikey):
+        return Response(status=503)
+
 
 def authorize(model, request):
     # takes in user model and request object
@@ -170,21 +176,34 @@ def authorize(model, request):
         return True
 
 class AccountBalance(Resource):
-    def get(self):
+    def get(self, apikey):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist",
+             "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
+
+        """ request to bitmex web api """
 
 
         body = MasonControls()
-        body.add_control_account()
-        body.add_control_transactionhistory()
+        body.add_control_account(apikey)
+        body.add_control_transactionhistory(apikey)
         return Response(body, status=200, mimetype=MASON)
 
 class TransactionHistory(Resource):
     def get(self):
-
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist",
+             "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
         body = MasonControls()
-        body.add_control_account()
-        body.add_control_accountbalance()
+        body.add_control_account(apikey)
+        body.add_control_accountbalance(apikey)
         return Response(body, status=200, mimetype=MASON)
 
 class OrdersResource(Resource):
@@ -220,13 +239,13 @@ class Position(Resource):
         return Response(status=503)
 
 api.add_resource(Account,"/account/")
-api.add_resource(AccountInformation,"/account/<apikey>")
-api.add_resource(OrdersResource,"/orders/<apikey>")
+api.add_resource(AccountInformation,"/account/<apikey>/")
+api.add_resource(OrdersResource,"/orders/<apikey>/")
 api.add_resource(PriceAction, "/priceaction/")
-api.add_resource(Positions, "/positions/<apikey>")
+api.add_resource(Positions, "/positions/<apikey>/")
 api.add_resource(OrderBook, "/orderbook/")
-api.add_resource(TransactionHistory, "/account/history/<apikey>")
-api.add_resource(AccountBalance, "/account/balance/<apikey>")
+api.add_resource(TransactionHistory, "/account/history/<apikey>/")
+api.add_resource(AccountBalance, "/account/balance/<apikey>/")
 
 def create_error_response(status_code, title, message=None):
     resource_url = request.path

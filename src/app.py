@@ -41,6 +41,32 @@ class MasonControls(MasonBuilder):
         }
         return schema
 
+    @staticmethod
+    def order_schema():
+        schema = {
+            "type": "object",
+            "required": ["symbol", "size", "price", "side"]
+        }
+        props = schema["properties"] = {}
+        props["symbol"] = {
+            "description": "Order trading pair symbol",
+            "type": "string"
+        }
+        props["size"] = {
+            "description": "The size of the order in contract",
+            "type": "integer"
+        }
+
+        props["price"] = {
+            "description": "price of the order",
+            "type": "number"
+        }
+        props["side"] = {
+            "description": "side of the order",
+            "type": "string"
+        }
+        return schema
+
     def add_control_account(self, apikey):
         self.add_control("account", href=api.url_for(AccountInformation, apikey=apikey),
                         method="GET",
@@ -87,6 +113,13 @@ class MasonControls(MasonBuilder):
         self.add_control("delete", href=api.url_for(AccountInformation, apikey=apikey),
                         method="DELETE",
                         title="delete this account")
+
+    def add_control_add_order(self, apikey):
+        self.add_control("add-order", href=api.url_for(OrdersResource, apikey=apikey),
+                        method="POST",
+                        encoding="json",
+                        title="add an order to bitmex",
+                        schema=self.order_schema())
 
 
 @app.route("/", methods=["GET"])
@@ -193,7 +226,7 @@ class AccountBalance(Resource):
         return Response(body, status=200, mimetype=MASON)
 
 class TransactionHistory(Resource):
-    def get(self):
+    def get(self, apikey):
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist",
@@ -207,8 +240,67 @@ class TransactionHistory(Resource):
         return Response(body, status=200, mimetype=MASON)
 
 class OrdersResource(Resource):
-    def get(self):
-        return Response(status=503)
+    def get(self, apikey):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist",
+             "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
+
+        # quries all the orders made by the account
+        orderlist_q = Orders.filter_by(user_id=acc.id).all()
+        orderlist = []
+        for order in orderlist_q:
+            orderbody=MasonControls(order_id = order.order_id,
+                                    order_price = order.order_price,
+                                    order_symbol = order.order_symbol,
+                                    order_side = order.order_side,
+                                    order_size = order.order_size)
+            orderbody.add_control("self", api.url_for(OrderResource, apikey=acc.api_public, orderid=order.order_id))
+            # add maybe link to order profile
+            orderlist.append(orderbody)
+
+        body = MasonControls(items=orderlist)
+        body.add_control_add_order(apikey)
+        return Response(json.dumps(body), status=200, mimetype=MASON)
+
+
+    def post(self, apikey):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist",
+             "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
+
+        if not request.json:
+            return create_error_response(415, "Unsupported media type", "Requests must be JSON")
+        try:
+            validate(request.json, MasonControls.order_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
+        symbol = request.json["symbol"]
+        size = request.json["size"]
+        price = request.json["price"]
+        side = request.json["side"]
+
+        # post to bitmex websocket api
+        # Receive order id with other data
+        # add the order then to our own database
+
+        order = Orders(order_id='00000000-0000-0000-0000-000000000000',
+                        order_size=1, order_side='Buy',
+                        order_symbol="XBTUSD", user=acc)
+        try:
+            db.session.add(order)
+            db.session.commit()
+
+        except IntegrityError:
+            return create_error_response(409, "Already exists", "")
+
+        return Response(status=201, headers={"Location": api.url_for(OrderResource, apikey=apikey, order_id='00000000-0000-0000-0000-000000000000')})
 
 class OrderResource(Resource):
     def get(self):
@@ -241,6 +333,7 @@ class Position(Resource):
 api.add_resource(Account,"/account/")
 api.add_resource(AccountInformation,"/account/<apikey>/")
 api.add_resource(OrdersResource,"/orders/<apikey>/")
+api.add_resource(OrderResource, "/orders/<apikey>/<orderid>/")
 api.add_resource(PriceAction, "/priceaction/")
 api.add_resource(Positions, "/positions/<apikey>/")
 api.add_resource(OrderBook, "/orderbook/")

@@ -114,12 +114,18 @@ class MasonControls(MasonBuilder):
                         method="DELETE",
                         title="delete this account")
 
+
     def add_control_add_order(self, apikey):
         self.add_control("add-order", href=api.url_for(OrdersResource, apikey=apikey),
                         method="POST",
                         encoding="json",
                         title="add an order to bitmex",
                         schema=self.order_schema())
+
+    def add_control_delete_order(self, apikey, orderid):
+        self.add_control("delete", href=api.url_for(OrderResource, apikey=apikey, orderid=orderid),
+                        method="DELETE",
+                        title="delete this order")
 
 
 @app.route("/", methods=["GET"])
@@ -187,7 +193,9 @@ class AccountInformation(Resource):
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
-        authorize(acc, request)
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
+
         db.session.delete(acc)
         db.session.commit()
         return Response(status=204)
@@ -249,7 +257,7 @@ class OrdersResource(Resource):
             return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
         # quries all the orders made by the account
-        orderlist_q = Orders.filter_by(user_id=acc.id).all()
+        orderlist_q = Orders.query.filter_by(user_id=acc.id).all()
         orderlist = []
         for order in orderlist_q:
             orderbody=MasonControls(order_id = order.order_id,
@@ -303,7 +311,44 @@ class OrdersResource(Resource):
         return Response(status=201, headers={"Location": api.url_for(OrderResource, apikey=apikey, order_id='00000000-0000-0000-0000-000000000000')})
 
 class OrderResource(Resource):
-    def get(self):
+    def get(self, apikey, orderid):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist",
+             "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
+
+        order = Orders.query.filter_by(order_id=orderid).first()
+        body = MasonControls(id = order.order_id,
+                             price = order.order_price,
+                             symbol = order.order_symbol,
+                             side = order.order_side,
+                             size = order.order_size)
+        body.add_control("self", api.url_for(OrderResource, apikey=apikey, orderid=order.order_id))
+        body.add_control("collection", api.url_for(OrdersResource))
+        body.add_control_delete_order(apikey, orderid)
+
+        return Response(json.dumps(body), status=200, mimetype=MASON)
+
+    def delete(self, apikey, orderid):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
+
+        order = Orders.query.filter_by(order_id=orderid).first()
+
+        # delete order in bitmex end
+        # if everything works, and deletion is succesfful, continue
+
+        db.session.delete(order)
+        db.session.commit()
+        return Response(status=204)
+
+    def put(self, apikey, orderid):
+        # Implement order amending if there is time
         return Response(status=503)
 
 class OrderHistory(Resource):

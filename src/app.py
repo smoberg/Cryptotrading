@@ -67,8 +67,14 @@ class MasonControls(MasonBuilder):
         }
         return schema
 
+
+    def add_control_accounts(self):
+        self.add_control("accounts", href=api.url_for(Accounts),
+                        method="GET",
+                        title="List all the accounts registered")
+
     def add_control_account(self, apikey):
-        self.add_control("account", href=api.url_for(AccountInformation, apikey=apikey),
+        self.add_control("account", href=api.url_for(Account, apikey=apikey),
                         method="GET",
                         title="Get general account information")
 
@@ -103,14 +109,14 @@ class MasonControls(MasonBuilder):
                         title="Get history of the wallet transactions")
 
     def add_control_add_account(self):
-        self.add_control("add-account", href=api.url_for(Account),
+        self.add_control("add-account", href=api.url_for(Accounts),
                         method="POST",
                         encoding="json",
                         title="add account to cryptotrading api",
                         schema=self.account_schema())
 
     def add_control_delete_account(self, apikey):
-        self.add_control("delete", href=api.url_for(AccountInformation, apikey=apikey),
+        self.add_control("delete", href=api.url_for(Account, apikey=apikey),
                         method="DELETE",
                         title="delete this account")
 
@@ -130,24 +136,39 @@ class MasonControls(MasonBuilder):
 
 @app.route("/", methods=["GET"])
 def entrypoint():
+    """ This is the view function for the API entry point """
     body = MasonControls()
-    body.add_control_add_account()
-
-    # body.add_control_orders()
+    body.add_control_accounts()
     body.add_control_orderbook()
     body.add_control_priceaction()
-    # body.add_control_positions()
+    # pitää ehkä laittaa headeriin Accept: application/vnd.mason+json
     return Response(json.dumps(body), status=200, mimetype=MASON)
 
-class Account(Resource):
+class Accounts(Resource):
     def get(self):
-        # add control to entrypoint maybe
-        # and controls to resources which don't need authentication
-        body = MasonControls()
+        """ Lists all the accounts registered to cryptotrading api """
+        userlist_q = User.query.all()
+        userlist = []
+
+        if len(userlist_q) == 0:  # if there are no accounts registered
+            body = MasonControls(items=userlist)
+            body.add_control("self", href=api.url_for(Accounts))
+            body.add_control_add_account()
+            return Response(json.dumps(body), status=200, mimetype=MASON)
+
+        for user in userlist_q:
+            userbody=MasonControls(accountname = user.username,
+                                   api_public = user.api_public)
+            userbody.add_control("self", href=api.url_for(Account, apikey=user.api_public), title="login to account")
+            userlist.append(userbody)
+
+        body = MasonControls(items=userlist)
+        body.add_control("self", href=api.url_for(Accounts))
         body.add_control_add_account()
         return Response(json.dumps(body), status=200, mimetype=MASON)
 
     def post(self):
+        """ Makes new account to cryptotrading API. """
         if not request.json:
             return create_error_response(415, "Unsupported media type", "Requests must be JSON")
         try:
@@ -155,8 +176,9 @@ class Account(Resource):
         except ValidationError as e:
             return create_error_response(400, "Invalid JSON document", str(e))
 
-        user = User(username=request.json["accountname"], api_public=request.json["api_public"],
-                        api_secret=request.json["api_secret"])
+        user = User(username=request.json["accountname"],
+                    api_public=request.json["api_public"],
+                    api_secret=request.json["api_secret"])
         try:
             db.session.add(user)
             db.session.commit()
@@ -164,24 +186,19 @@ class Account(Resource):
         except IntegrityError:
             return create_error_response(409, "Already exists",
                                         "Account with name '{}' already exists.".format(request.json["accountname"]))
-        return Response(status=201, headers={"Location": api.url_for(AccountInformation, apikey=request.json["api_public"])})
+        return Response(status=201, headers={"Location": api.url_for(Account, apikey=request.json["api_public"])})
 
-class AccountInformation(Resource):
+class Account(Resource):
     def get(self, apikey):
-        # sends request to bitmex websocket api, retrieves Response
-        # Parses response
-        # Adds json controls to body
-        # Return response
-        # control back to entrypoint?
-        # communication with bitmex websocket api might not be necessary
+        """ Sending get to Account resource logins to that account. """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
-        # authorized = authorize(acc, request)
         if not authorize(acc, request):
             return create_error_response(401, "Unauthorized", "need secret api-key in the http header")
+
         body = MasonControls(accountname=acc.username, api_public=acc.api_public, api_secret=acc.api_secret)
-        body.add_control("self", api.url_for(AccountInformation, apikey=apikey))
+        body.add_control("self", api.url_for(Account, apikey=apikey))
         body.add_control_orders(apikey)
         body.add_control_accountbalance(apikey)
         body.add_control_positions(apikey)
@@ -190,6 +207,7 @@ class AccountInformation(Resource):
         return Response(json.dumps(body), status=200, mimetype=MASON)
 
     def delete(self, apikey):
+        """ Used for deleting the account """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
@@ -259,6 +277,12 @@ class OrdersResource(Resource):
         # quries all the orders made by the account
         orderlist_q = Orders.query.filter_by(user_id=acc.id).all()
         orderlist = []
+
+        if len(orderlist_q) == 0: # if there are no orders made by the account.
+            body = MasonControls(items=orderlist)
+            body.add_control_add_order(apikey)
+            return Response(json.dumps(body), status=200, mimetype=MASON)
+
         for order in orderlist_q:
             orderbody=MasonControls(order_id = order.order_id,
                                     order_price = order.order_price,
@@ -325,6 +349,7 @@ class OrderResource(Resource):
                              symbol = order.order_symbol,
                              side = order.order_side,
                              size = order.order_size)
+
         body.add_control("self", api.url_for(OrderResource, apikey=apikey, orderid=order.order_id))
         body.add_control("collection", api.url_for(OrdersResource))
         body.add_control_delete_order(apikey, orderid)
@@ -375,15 +400,15 @@ class Position(Resource):
     def get(self):
         return Response(status=503)
 
-api.add_resource(Account,"/account/")
-api.add_resource(AccountInformation,"/account/<apikey>/")
-api.add_resource(OrdersResource,"/orders/<apikey>/")
-api.add_resource(OrderResource, "/orders/<apikey>/<orderid>/")
+api.add_resource(Accounts,"/accounts/")
+api.add_resource(Account,"/accounts/<apikey>/")
+api.add_resource(OrdersResource,"/accounts/<apikey>/orders/")
+api.add_resource(OrderResource, "/accounts/<apikey>/orders/<orderid>/")
 api.add_resource(PriceAction, "/priceaction/")
-api.add_resource(Positions, "/positions/<apikey>/")
+api.add_resource(Positions, "/accounts/<apikey>/positions/")
 api.add_resource(OrderBook, "/orderbook/")
-api.add_resource(TransactionHistory, "/account/history/<apikey>/")
-api.add_resource(AccountBalance, "/account/balance/<apikey>/")
+api.add_resource(TransactionHistory, "/accounts/<apikey>/history/")
+api.add_resource(AccountBalance, "/accounts/<apikey>/history")
 
 def create_error_response(status_code, title, message=None):
     resource_url = request.path

@@ -142,10 +142,13 @@ class Positions(Resource):
     def get(self):
 
         try:
-            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
             positions = []
             parsed_positions = []
             positions = ws.positions()
+            ws.exit()
+            if not positions:
+                return Response("You have no open positions", status=201)
             for position in positions:
                 parsed_position = {}
                 parsed_position["symbol"] = position["symbol"]
@@ -167,9 +170,9 @@ class Position(Resource):
             if not request.args["symbol"]:
                 create_error_response(400, "Query Error", 'Missing query parameter "symbol"')
             try:
-                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
-                parsed_positions = []
+                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=request.args["symbol"], api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
                 positions = ws.positions()
+
                 for position in positions:
                     parsed_position = {}
                     parsed_position["symbol"] = position["symbol"]
@@ -182,8 +185,8 @@ class Position(Resource):
                     parsed_position["liquidationprice"] = position["liquidationPrice"]
                     parsed_positions.append(parsed_position)
                 return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
-            except TypeError:
-                return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
+            except:
+                return create_error_response(400, "No Positions Found", "You have no open positions")
 
 
 api.add_resource(AccountInformation,"/account/")

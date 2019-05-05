@@ -1,6 +1,6 @@
 import json
 import requests
-
+import sys, os
 API_URL = "http://localhost:5000"
 
 def prompt_from_schema(s, ctrl):
@@ -45,11 +45,10 @@ def submit_data(s, ctrl, data, headers):
 
 
 def main():
-    with requests.Session() as s:
-        resp = s.get(API_URL + "/api/sensors/")
-        body = resp.json()
-        prompt_from_schema(s, body["@controls"]["senhub:add-sensor"])
 
+    with requests.Session() as s:
+        resp = s.get(API_URL)
+        body = resp.json()
 
 
 if __name__ == '__main__':

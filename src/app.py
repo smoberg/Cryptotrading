@@ -8,6 +8,7 @@ import json
 from bitmex_websocket import BitMEXWebsocket
 from database import db, User, Orders
 
+
 MASON = "application/vnd.mason+json"
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
@@ -421,6 +422,7 @@ class Positions(Resource):
             ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1",
                                  symbol="", api_key=apikey,
                                  api_secret=request.headers["api_secret"])
+
             positions = []
             parsed_positions = []
             positions = ws.positions()
@@ -445,7 +447,7 @@ class Positions(Resource):
                     parsed_positions.append(parsed_position)
 
             body = MasonControls(items=parsed_position)
-            body.add_control_account()
+            body.add_control_account(apikey)
             return Response(json.dumps(body), status=200, mimetype=MASON)
 
         except TypeError:
@@ -454,27 +456,53 @@ class Positions(Resource):
 
 class Position(Resource):
     def get(self, apikey, symbol):
-            if not request.args["symbol"]:
-                create_error_response(400, "Query Error", 'Missing query parameter "symbol"')
-            try:
-                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=request.args["symbol"], api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
-                positions = ws.positions()
-                ws.exit()
+    acc = User.query.filter_by(api_public=apikey).first()
+    if not acc:
+        return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
+    if not authorize(acc, request):
+        return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
-                for position in positions:
-                    parsed_position = {}
-                    parsed_position["symbol"] = position["symbol"]
-                    parsed_position["size"] = position["currentQty"]
-                    if position["crossMargin"] == True:
-                        parsed_position["leverage"] = 0
-                    else:
-                        parsed_position["leverage"] = position["leverage"]
-                    parsed_position["entryprice"] = position["avgEntryPrice"]
-                    parsed_position["liquidationprice"] = position["liquidationPrice"]
-                    parsed_positions.append(parsed_position)
-                return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
-            except:
-                return create_error_response(400, "No Positions Found", "You have no open positions")
+    try:
+        ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1",
+                             symbol=symbol, api_key=apikey,
+                             api_secret=request.headers["api_secret"])
+
+        positions = []
+        parsed_positions = []
+        positions = ws.positions()
+        ws.exit()
+        if positions:
+            for position in positions:
+                parsed_position_symbol = position["symbol"]
+                parsed_position_size = position["currentQty"]
+                if position["crossMargin"] == True:
+                    parsed_position_leverage = 0
+                else:
+                    parsed_position_leverage = position["leverage"]
+                parsed_position_entyprice = position["avgEntryPrice"]
+                parsed_position_liquidationPrice = position["liquidationPrice"]
+
+                parsed_position = MasonControls(symbol = parsed_position_symbol,
+                                                size = parsed_position_size,
+                                                leverage = parsed_position_leverage,
+                                                avgEntryPrice = parsed_position_entyprice,
+                                                liquidationPrice = parsed_position_liquidationPrice)
+
+                parsed_position.add_control("self", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol))
+                parsed_position.add_control("edit", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol),
+                                            method="PATCH",
+                                            title="Change positions leverage")
+                parsed_position.add_control_positions(apikey)
+                parsed_positions.append(parsed_position)
+
+        if len(parsed_positions) == 1:
+            body = parsed_positions[0]
+
+            return Response(json.dumps(body), status=200, mimetype=MASON)
+        else:
+            return Response(json.dumps(parsed_positions), status=200, mimetype=MASON)
+    except TypeError:
+        return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 api.add_resource(Accounts,"/accounts/")
 api.add_resource(Account,"/accounts/<apikey>/")

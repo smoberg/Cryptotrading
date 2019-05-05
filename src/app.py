@@ -410,34 +410,50 @@ class BucketedPriceAction(Resource):
         return Response(status=503)
 
 class Positions(Resource):
-    def get(self):
+    def get(self, apikey):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
         try:
-            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1",
+                                 symbol="", api_key=apikey,
+                                 api_secret=request.headers["api_secret"])
             positions = []
             parsed_positions = []
             positions = ws.positions()
             ws.exit()
-            if not positions:
-                return Response("You have no open positions", status=201)
-            for position in positions:
-                parsed_position = {}
-                parsed_position["symbol"] = position["symbol"]
-                parsed_position["size"] = position["currentQty"]
-                if position["crossMargin"] == True:
-                    parsed_position["leverage"] = 0
-                else:
-                    parsed_position["leverage"] = position["leverage"]
-                parsed_position["entryprice"] = position["avgEntryPrice"]
-                parsed_position["liquidationprice"] = position["liquidationPrice"]
-                parsed_positions.append(parsed_position)
-            return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
+            if positions:
+                for position in positions:
+                    parsed_position_symbol = position["symbol"]
+                    parsed_position_size = position["currentQty"]
+                    if position["crossMargin"] == True:
+                        parsed_position_leverage = 0
+                    else:
+                        parsed_position_leverage = position["leverage"]
+                    parsed_position_entyprice = position["avgEntryPrice"]
+                    parsed_position_liquidationPrice = position["liquidationPrice"]
+
+                    parsed_position = MasonControls(symbol = parsed_position_symbol,
+                                                    size = parsed_position_size,
+                                                    leverage = parsed_position_leverage,
+                                                    avgEntryPrice = parsed_position_entyprice,
+                                                    liquidationPrice = parsed_position_liquidationPrice)
+                    parsed_position.add_control("self", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol))
+                    parsed_positions.append(parsed_position)
+
+            body = MasonControls(items=parsed_position)
+            body.add_control_account()
+            return Response(json.dumps(body), status=200, mimetype=MASON)
+
         except TypeError:
             return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 
 class Position(Resource):
-    def get(self):
+    def get(self, apikey, symbol):
             if not request.args["symbol"]:
                 create_error_response(400, "Query Error", 'Missing query parameter "symbol"')
             try:
@@ -466,6 +482,7 @@ api.add_resource(OrdersResource,"/accounts/<apikey>/orders/")
 api.add_resource(OrderResource, "/accounts/<apikey>/orders/<orderid>/")
 api.add_resource(PriceAction, "/priceaction/")
 api.add_resource(Positions, "/accounts/<apikey>/positions/")
+api.add_resource(Position, "/accounts/<apikey>/positions/<symbol>/")
 api.add_resource(OrderBook, "/orderbook/")
 api.add_resource(TransactionHistory, "/accounts/<apikey>/history/")
 api.add_resource(AccountBalance, "/accounts/<apikey>/history")

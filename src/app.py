@@ -172,6 +172,7 @@ class Position(Resource):
             try:
                 ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=request.args["symbol"], api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
                 positions = ws.positions()
+                ws.exit()
 
                 for position in positions:
                     parsed_position = {}

@@ -386,7 +386,24 @@ class OrderBook(Resource):
 
 class PriceAction(Resource):
     def get(self):
-        return Response(status=503)
+        if not request.args:
+            return create_error_response(400, "Query Error", 'Missing Query Parameter "symbol"')
+        try:
+            if request.args["symbol"]:
+                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=request.args["symbol"], api_key=None, api_secret=None)
+                trades = []
+                trades = ws.recent_trades()
+                for trade in trades:
+                    trade.pop("timestamp")
+                    trade.pop("tickDirection")
+                    trade.pop("trdMatchID")
+                    trade.pop("homeNotional")
+                    trade.pop("foreignNotional")
+                    trade.pop("grossValue")
+
+                return Response(json.dumps(trades), status=200, mimetype="application/json")
+        except:
+            return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 class BucketedPriceAction(Resource):
     def get(self):
@@ -394,11 +411,54 @@ class BucketedPriceAction(Resource):
 
 class Positions(Resource):
     def get(self):
-        return Response(status=503)
+
+        try:
+            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+            positions = []
+            parsed_positions = []
+            positions = ws.positions()
+            ws.exit()
+            if not positions:
+                return Response("You have no open positions", status=201)
+            for position in positions:
+                parsed_position = {}
+                parsed_position["symbol"] = position["symbol"]
+                parsed_position["size"] = position["currentQty"]
+                if position["crossMargin"] == True:
+                    parsed_position["leverage"] = 0
+                else:
+                    parsed_position["leverage"] = position["leverage"]
+                parsed_position["entryprice"] = position["avgEntryPrice"]
+                parsed_position["liquidationprice"] = position["liquidationPrice"]
+                parsed_positions.append(parsed_position)
+            return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
+        except TypeError:
+            return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
+
 
 class Position(Resource):
     def get(self):
-        return Response(status=503)
+            if not request.args["symbol"]:
+                create_error_response(400, "Query Error", 'Missing query parameter "symbol"')
+            try:
+                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=request.args["symbol"], api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+                positions = ws.positions()
+                ws.exit()
+
+                for position in positions:
+                    parsed_position = {}
+                    parsed_position["symbol"] = position["symbol"]
+                    parsed_position["size"] = position["currentQty"]
+                    if position["crossMargin"] == True:
+                        parsed_position["leverage"] = 0
+                    else:
+                        parsed_position["leverage"] = position["leverage"]
+                    parsed_position["entryprice"] = position["avgEntryPrice"]
+                    parsed_position["liquidationprice"] = position["liquidationPrice"]
+                    parsed_positions.append(parsed_position)
+                return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
+            except:
+                return create_error_response(400, "No Positions Found", "You have no open positions")
 
 api.add_resource(Accounts,"/accounts/")
 api.add_resource(Account,"/accounts/<apikey>/")

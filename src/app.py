@@ -140,11 +140,50 @@ class BucketedPriceAction(Resource):
 
 class Positions(Resource):
     def get(self):
-        return Response(status=503)
+
+        try:
+            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+            positions = []
+            parsed_positions = []
+            positions = ws.positions()
+            for position in positions:
+                parsed_position = {}
+                parsed_position["symbol"] = position["symbol"]
+                parsed_position["size"] = position["currentQty"]
+                if position["crossMargin"] == True:
+                    parsed_position["leverage"] = 0
+                else:
+                    parsed_position["leverage"] = position["leverage"]
+                parsed_position["entryprice"] = position["avgEntryPrice"]
+                parsed_position["liquidationprice"] = position["liquidationPrice"]
+                parsed_positions.append(parsed_position)
+            return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
+        except TypeError:
+            return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
+
 
 class Position(Resource):
     def get(self):
-        return Response(status=503)
+            if not request.args["symbol"]:
+                create_error_response(400, "Query Error", 'Missing query parameter "symbol"')
+            try:
+                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+                parsed_positions = []
+                positions = ws.positions()
+                for position in positions:
+                    parsed_position = {}
+                    parsed_position["symbol"] = position["symbol"]
+                    parsed_position["size"] = position["currentQty"]
+                    if position["crossMargin"] == True:
+                        parsed_position["leverage"] = 0
+                    else:
+                        parsed_position["leverage"] = position["leverage"]
+                    parsed_position["entryprice"] = position["avgEntryPrice"]
+                    parsed_position["liquidationprice"] = position["liquidationPrice"]
+                    parsed_positions.append(parsed_position)
+                return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
+            except TypeError:
+                return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 
 api.add_resource(AccountInformation,"/account/")

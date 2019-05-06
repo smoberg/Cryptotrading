@@ -2,10 +2,12 @@ from flask import Flask, Response, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError, DataError
 from flask_restful import Resource, Api
+import requests
 from jsonschema import validate, ValidationError
 from utils import MasonBuilder
 import json
 from bitmex_websocket import BitMEXWebsocket
+from util.api_key import generate_nonce, generate_signature
 from database import db, User, Orders
 import traceback
 
@@ -198,6 +200,7 @@ class Account(Resource):
         if not authorize(acc, request):
             return create_error_response(401, "Unauthorized", "need secret api-key in the http header")
 
+
         body = MasonControls(accountname=acc.username, api_public=acc.api_public, api_secret=acc.api_secret)
         body.add_control("self", api.url_for(Account, apikey=apikey))
         body.add_control_orders(apikey)
@@ -236,6 +239,7 @@ def authorize(model, request):
         return True
 
 class AccountBalance(Resource):
+    """ Get Account Margin Balance from BitMEX Websocket API """
     def get(self, apikey):
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
@@ -244,8 +248,9 @@ class AccountBalance(Resource):
         if not authorize(acc, request):
             return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
-        """ request to bitmex web api """
 
+        ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="", api_key=acc.api_public, api_secret=request.headers["api_secret"])
+        balance = ws.funds()
 
         body = MasonControls()
         body.add_control_account(apikey)
@@ -505,6 +510,48 @@ class Position(Resource):
         except TypeError:
             return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
+    def patch(self, apikey, symbol):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist",
+             "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
+
+        try:
+
+            data = {}
+            data["symbol"] = symbol
+            data["leverage"] = float(request.json["leverage"])
+
+            url = '/api/v1/position/leverage'
+            #Create signature and headers with BitMEXWebsocket generate signature function
+
+            nonce = generate_nonce()
+            api_secret = 'j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd'
+            apikey = '79z47uUikMoPe2eADqfJzRBu'
+
+            headers = {
+                    "api-nonce" : str(nonce),
+                    "api-signature" :  generate_signature(api_secret, "POST", url, nonce, json.dumps(data)),
+                    "api-key" : apikey
+                }
+
+            res = requests.post('https://testnet.bitmex.com' + url, json=data, headers=headers)
+            return Response(json.dumps(data), status=200, mimetype="application/json")
+        except ValueError:
+            pass
+
+
+
+
+
+
+
+
+
+
+
 api.add_resource(Accounts,"/accounts/")
 api.add_resource(Account,"/accounts/<apikey>/")
 api.add_resource(OrdersResource,"/accounts/<apikey>/orders/")
@@ -515,7 +562,7 @@ api.add_resource(Position, "/accounts/<apikey>/positions/<symbol>/")
 api.add_resource(OrderBook, "/orderbook/")
 api.add_resource(OrderHistory, "/accounts/<apikey>/orders/history/")
 api.add_resource(TransactionHistory, "/accounts/<apikey>/history/")
-api.add_resource(AccountBalance, "/accounts/<apikey>/history")
+api.add_resource(AccountBalance, "/accounts/<apikey>/balance/")
 api.add_resource(BucketedPriceAction, "/priceaction/bucketed/")
 def create_error_response(status_code, title, message=None):
     resource_url = request.path

@@ -68,6 +68,18 @@ class MasonControls(MasonBuilder):
         }
         return schema
 
+    @staticmethod
+    def position_schema():
+        schema = {
+            "type": "object",
+            "required": ["leverage"]
+        }
+        props = schema["properties"] = {}
+        props["leverage"] = {
+            "description": "Leverage of the position",
+            "type": "number"
+        }
+        return schema
 
     def add_control_accounts(self):
         self.add_control("accounts", href=api.url_for(Accounts),
@@ -345,6 +357,9 @@ class OrderResource(Resource):
             return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
         order = Orders.query.filter_by(order_id=orderid).first()
+        if not order:
+               return create_error_response(404, "Order does not exist", "Order with orderid '{}' does not exist.".format(orderid))
+
         body = MasonControls(id = order.order_id,
                              price = order.order_price,
                              symbol = order.order_symbol,
@@ -365,6 +380,8 @@ class OrderResource(Resource):
             return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
         order = Orders.query.filter_by(order_id=orderid).first()
+        if not order:
+               return create_error_response(404, "Order does not exist", "Order with orderid '{}' does not exist.".format(orderid))
 
         # delete order in bitmex end
         # if everything works, and deletion is succesfful, continue
@@ -447,7 +464,7 @@ class Positions(Resource):
                     parsed_position.add_control("self", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol))
                     parsed_positions.append(parsed_position)
 
-            body = MasonControls(items=parsed_position)
+            body = MasonControls(items=parsed_positions)
             body.add_control_account(apikey)
             return Response(json.dumps(body), status=200, mimetype=MASON)
 
@@ -492,7 +509,10 @@ class Position(Resource):
                     parsed_position.add_control("self", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol))
                     parsed_position.add_control("edit", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol),
                                                 method="PATCH",
-                                                title="Change positions leverage")
+                                                encoding="json",
+                                                title="Change position leverage",
+                                                schema=parsed_position.position_schema())
+
                     parsed_position.add_control_positions(apikey)
                     parsed_positions.append(parsed_position)
 
@@ -517,6 +537,7 @@ api.add_resource(OrderHistory, "/accounts/<apikey>/orders/history/")
 api.add_resource(TransactionHistory, "/accounts/<apikey>/history/")
 api.add_resource(AccountBalance, "/accounts/<apikey>/history")
 api.add_resource(BucketedPriceAction, "/priceaction/bucketed/")
+
 def create_error_response(status_code, title, message=None):
     resource_url = request.path
     body = MasonBuilder(resource_url=resource_url)

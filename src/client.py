@@ -43,6 +43,35 @@ def submit_data(s, ctrl, data, headers):
         headers = headers) # after logging in to account we need to change headers to contain secret apikey
     return resp
 
+def mainmenu():
+    """ This menu has has option to go for price action or account related part of the api """
+    pass
+
+def priceactionmenu():
+    """ This menu has option to get price action data and do something with it """
+    os.system("clear")
+    print("Choose ")
+
+    pass
+
+def accountsmenu():
+    """ This menu has option to add account, or login to existing account """
+    """ Sends GET to accounts resource, shows list of accounts """
+    """ Select account to login or add new or back to mainmenu """
+    pass
+
+def accountmenu():
+    """ Option to delete account """
+    """ Options to go for orders menu or to positions menu """
+    pass
+
+def positionsmenu():
+    """ """
+    pass
+
+def orderssmenu():
+    """ Options for adding new order and for selecting one and deleting it or back to account """
+    pass
 
 def main():
 

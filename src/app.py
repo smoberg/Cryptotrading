@@ -7,6 +7,7 @@ from utils import MasonBuilder
 import json
 from bitmex_websocket import BitMEXWebsocket
 from database import db, User, Orders
+import traceback
 
 MASON = "application/vnd.mason+json"
 app = Flask(__name__)
@@ -76,7 +77,7 @@ class MasonControls(MasonBuilder):
     def add_control_account(self, apikey):
         self.add_control("account", href=api.url_for(Account, apikey=apikey),
                         method="GET",
-                        title="Get general account information")
+                        title="Login to account")
 
     def add_control_orders(self, apikey):
         self.add_control("orders", href=api.url_for(OrdersResource, apikey=apikey),
@@ -112,7 +113,7 @@ class MasonControls(MasonBuilder):
         self.add_control("add-account", href=api.url_for(Accounts),
                         method="POST",
                         encoding="json",
-                        title="add account to cryptotrading api",
+                        title="Add account to cryptotrading API",
                         schema=self.account_schema())
 
     def add_control_delete_account(self, apikey):
@@ -125,7 +126,7 @@ class MasonControls(MasonBuilder):
         self.add_control("add-order", href=api.url_for(OrdersResource, apikey=apikey),
                         method="POST",
                         encoding="json",
-                        title="add an order to bitmex",
+                        title="Add an order to Cryptotrading API",
                         schema=self.order_schema())
 
     def add_control_delete_order(self, apikey, orderid):
@@ -394,15 +395,16 @@ class PriceAction(Resource):
                 trades = []
                 trades = ws.recent_trades()
                 for trade in trades:
-                    trade.pop("timestamp")
-                    trade.pop("tickDirection")
-                    trade.pop("trdMatchID")
-                    trade.pop("homeNotional")
-                    trade.pop("foreignNotional")
-                    trade.pop("grossValue")
-
-                return Response(json.dumps(trades), status=200, mimetype="application/json")
+                    body = MasonControls(symbol = trade["symbol"],
+                                         side= trade["side"],
+                                         size = trade["size"],
+                                         price = trade["price"])
+                    body.add_control("buckets", href=api.url_for(BucketedPriceAction) + "?{timebucket}",
+                                     title="Trades in time buckets")
+                    body.add_control("self", href=api.url_for(PriceAction))
+                return Response(json.dumps(body), status=200, mimetype=MASON)
         except:
+            print(traceback.format_exc())
             return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 class BucketedPriceAction(Resource):
@@ -410,55 +412,98 @@ class BucketedPriceAction(Resource):
         return Response(status=503)
 
 class Positions(Resource):
-    def get(self):
+    def get(self, apikey):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
         try:
-            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="", api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1",
+                                 symbol="", api_key=apikey,
+                                 api_secret=request.headers["api_secret"])
+
             positions = []
             parsed_positions = []
             positions = ws.positions()
             ws.exit()
-            if not positions:
-                return Response("You have no open positions", status=201)
-            for position in positions:
-                parsed_position = {}
-                parsed_position["symbol"] = position["symbol"]
-                parsed_position["size"] = position["currentQty"]
-                if position["crossMargin"] == True:
-                    parsed_position["leverage"] = 0
-                else:
-                    parsed_position["leverage"] = position["leverage"]
-                parsed_position["entryprice"] = position["avgEntryPrice"]
-                parsed_position["liquidationprice"] = position["liquidationPrice"]
-                parsed_positions.append(parsed_position)
-            return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
+            if positions:
+                for position in positions:
+                    parsed_position_symbol = position["symbol"]
+                    parsed_position_size = position["currentQty"]
+                    if position["crossMargin"] == True:
+                        parsed_position_leverage = 0
+                    else:
+                        parsed_position_leverage = position["leverage"]
+                    parsed_position_entyprice = position["avgEntryPrice"]
+                    parsed_position_liquidationPrice = position["liquidationPrice"]
+
+                    parsed_position = MasonControls(symbol = parsed_position_symbol,
+                                                    size = parsed_position_size,
+                                                    leverage = parsed_position_leverage,
+                                                    avgEntryPrice = parsed_position_entyprice,
+                                                    liquidationPrice = parsed_position_liquidationPrice)
+                    parsed_position.add_control("self", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol))
+                    parsed_positions.append(parsed_position)
+
+            body = MasonControls(items=parsed_position)
+            body.add_control_account(apikey)
+            return Response(json.dumps(body), status=200, mimetype=MASON)
+
         except TypeError:
             return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 
 class Position(Resource):
-    def get(self):
-            if not request.args["symbol"]:
-                create_error_response(400, "Query Error", 'Missing query parameter "symbol"')
-            try:
-                ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=request.args["symbol"], api_key="79z47uUikMoPe2eADqfJzRBu", api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
-                positions = ws.positions()
-                ws.exit()
+    def get(self, apikey, symbol):
+        acc = User.query.filter_by(api_public=apikey).first()
+        if not acc:
+            return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
+        if not authorize(acc, request):
+            return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
+        try:
+            ws = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1",
+                                 symbol=symbol, api_key=apikey,
+                                 api_secret=request.headers["api_secret"])
+
+            positions = []
+            parsed_positions = []
+            positions = ws.positions()
+            ws.exit()
+            if positions:
                 for position in positions:
-                    parsed_position = {}
-                    parsed_position["symbol"] = position["symbol"]
-                    parsed_position["size"] = position["currentQty"]
+                    parsed_position_symbol = position["symbol"]
+                    parsed_position_size = position["currentQty"]
                     if position["crossMargin"] == True:
-                        parsed_position["leverage"] = 0
+                        parsed_position_leverage = 0
                     else:
-                        parsed_position["leverage"] = position["leverage"]
-                    parsed_position["entryprice"] = position["avgEntryPrice"]
-                    parsed_position["liquidationprice"] = position["liquidationPrice"]
+                        parsed_position_leverage = position["leverage"]
+                    parsed_position_entyprice = position["avgEntryPrice"]
+                    parsed_position_liquidationPrice = position["liquidationPrice"]
+
+                    parsed_position = MasonControls(symbol = parsed_position_symbol,
+                                                    size = parsed_position_size,
+                                                    leverage = parsed_position_leverage,
+                                                    avgEntryPrice = parsed_position_entyprice,
+                                                    liquidationPrice = parsed_position_liquidationPrice)
+
+                    parsed_position.add_control("self", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol))
+                    parsed_position.add_control("edit", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol),
+                                                method="PATCH",
+                                                title="Change positions leverage")
+                    parsed_position.add_control_positions(apikey)
                     parsed_positions.append(parsed_position)
-                return Response(json.dumps(parsed_positions), status=200, mimetype="application/json")
-            except:
-                return create_error_response(400, "No Positions Found", "You have no open positions")
+
+            if len(parsed_positions) == 1:
+                body = parsed_positions[0]
+
+                return Response(json.dumps(body), status=200, mimetype=MASON)
+            else:
+                return Response(json.dumps(parsed_positions), status=200, mimetype=MASON)
+        except TypeError:
+            return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 api.add_resource(Accounts,"/accounts/")
 api.add_resource(Account,"/accounts/<apikey>/")
@@ -466,10 +511,12 @@ api.add_resource(OrdersResource,"/accounts/<apikey>/orders/")
 api.add_resource(OrderResource, "/accounts/<apikey>/orders/<orderid>/")
 api.add_resource(PriceAction, "/priceaction/")
 api.add_resource(Positions, "/accounts/<apikey>/positions/")
+api.add_resource(Position, "/accounts/<apikey>/positions/<symbol>/")
 api.add_resource(OrderBook, "/orderbook/")
+api.add_resource(OrderHistory, "/accounts/<apikey>/orders/history/")
 api.add_resource(TransactionHistory, "/accounts/<apikey>/history/")
 api.add_resource(AccountBalance, "/accounts/<apikey>/history")
-
+api.add_resource(BucketedPriceAction, "/priceaction/bucketed/")
 def create_error_response(status_code, title, message=None):
     resource_url = request.path
     body = MasonBuilder(resource_url=resource_url)

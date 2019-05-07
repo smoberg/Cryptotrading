@@ -5,7 +5,7 @@ import app
 from database import User, Orders, db
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
-from sqlalchemy.exc import IntegrityError, StatementError
+
 
 """
 These tests are based on the database testing example found in lovelace
@@ -35,11 +35,13 @@ def db_handle():
     os.unlink(db_fname)
 
 def _get_user(number=1):
+    """ Creates user model """
     return User(username="testuser-{}".format(number),
                 api_public="79z47uUikMoPe2eADqfJzRB{}".format(number),
                 api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbj{}".format(number))
 
 def _get_order(number=1):
+    """ Creates order model """
     return Orders(order_id='00000000-0000-0000-0000-00000000000{}'.format(number),
                   order_size=1, order_side='Buy',
                   order_symbol="XBTUSD")

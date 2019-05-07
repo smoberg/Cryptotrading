@@ -23,6 +23,7 @@ def db_handle():
     db_fd, db_fname = tempfile.mkstemp()
     app.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_fname
     app.app.config["TESTING"] = True
+    app.app.config["DEBUG"] = False
     db.init_app(app.app)
 
     with app.app.app_context():
@@ -43,7 +44,7 @@ def _get_user(number=1):
 def _get_order(number=1):
     """ Creates order model """
     return Orders(order_id='00000000-0000-0000-0000-00000000000{}'.format(number),
-                  order_size=1, order_side='Buy',
+                  order_price=3567.5, order_size=1, order_side='Buy',
                   order_symbol="XBTUSD")
 
 def test_create_instances(db_handle):

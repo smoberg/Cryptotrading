@@ -51,18 +51,51 @@ def test_create_instances(db_handle):
     everything can be found from database, and that all relationships have been
     saved correctly.
     """
+
     # Make everything, add order to user's order relationship
-    user = _get_user()
-    order = _get_order()
-    user.orders.append(order)
-    db_handle.session.add(user)
-    db_handle.session.add(order)
-    db.session.commit()
-    # Check that everything exists
-    assert User.query.count() == 1
-    assert Orders.query.count() == 1
-    db_user = User.query.first()
-    db_order = Orders.query.first()
-    # Relationship check
-    assert db_order in db_user.orders
-    assert db_user == db_order.user
+    with app.app.app_context():
+        user = _get_user()
+        order = _get_order()
+        user.orders.append(order)
+        db_handle.session.add(user)
+        db_handle.session.add(order)
+        db.session.commit()
+        # Check that everything exists
+        assert User.query.count() == 1
+        assert Orders.query.count() == 1
+        db_user = User.query.first()
+        db_order = Orders.query.first()
+        # Relationship check
+        assert db_order in db_user.orders
+        assert db_user == db_order.user
+
+def test_order_ondelete_user(db_handle):
+    """
+    Tests that foreign key in order is set to null if user is deleted.
+    """
+    with app.app.app_context():
+        user = _get_user()
+        order = _get_order()
+        user.orders.append(order)
+        db_handle.session.add(order)
+        db_handle.session.commit()
+        db_handle.session.delete(user)
+        db_handle.session.commit()
+        assert order.user_id is None
+
+def test_order_onupdate_user(db_handle):
+    """
+    Tests that foreign key in order is cascaded properly if user.id is modified
+    """
+    with app.app.app_context():
+        user = _get_user()
+        order = _get_order()
+        user.orders.append(order)
+        db_handle.session.add(user)
+        db_handle.session.add(order)
+        db.session.commit()
+        db_user = User.query.first()
+        db_user.id = 73
+        db.session.commit()
+        db_order = Orders.query.first()
+        assert db_order.user_id == 73

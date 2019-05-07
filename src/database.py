@@ -13,7 +13,7 @@ class User(db.Model):
 
 class Orders(db.Model):
     order_id = db.Column(db.String(36), nullable=False, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL", onupdate="CASCADE"))
     order_size = db.Column(db.Integer, nullable=False)
     order_side = db.Column(db.String(4), nullable=False)
     order_symbol = db.Column(db.String(10), nullable=False)

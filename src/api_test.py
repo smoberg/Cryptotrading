@@ -44,7 +44,7 @@ def _populate_db():
         for i in range(1, 4):
             user=User(username="testuser-{}".format(i),
                       api_public="79z47uUikMoPe2eADqfJzRB{}".format(i),
-                      api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy")
+                      api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
 
             order = Orders(order_id='00000000-0000-0000-0000-00000000000{}'.format(i),
                            order_price=3567.5, order_size=1, order_side='Buy',
@@ -52,6 +52,16 @@ def _populate_db():
 
             user.orders.append(order)
             db.session.add(user)
+        # adds a real user that has valid apikey for bitmex related stuff
+        user=User(username="realuser",
+                  api_public="79z47uUikMoPe2eADqfJzRBu",
+                  api_secret="j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd")
+
+        order = Orders(order_id='00000000-0000-0000-0000-000000000000',
+                       order_price=3567.5, order_size=1, order_side='Buy',
+                       order_symbol="XBTUSD")
+        user.orders.append(order)
+        db.session.add(user)
         db.session.commit()
 
 
@@ -114,7 +124,7 @@ def _check_control_post_method(ctrl, client, obj, headers=None):
         resp = client.post(href, json=body)
         assert resp.status_code == 201
 
-def _check_control_patch_method(ctrl, client, obj):
+def _check_control_patch_method(ctrl, client, obj, headers=None):
     """
     Checks a PATCH type control from a JSON object be it root document or an item
     in a collection. In addition to checking the "href" attribute, also checks
@@ -133,14 +143,14 @@ def _check_control_patch_method(ctrl, client, obj):
     assert encoding == "json"
     body = _get_leverage_json()
     validate(body, schema)
-    resp = client.patch(href, json=body)
+    resp = client.patch(href, json=body, headers=headers)
     assert resp.status_code == 204
 
 def _get_account_json(number=1):
     """ Creates account json object that is used in POST account test """
     return {"accountname": "user{}".format(number),
 	       "api_public": "79z47uUikMoPe2eADqfJzR{}B".format(number),
-	       "api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"}
+	       "api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}
 
 def _get_order_json():
     """ Creates order json object that is used in POST order test """
@@ -154,13 +164,13 @@ def _get_order_json():
 
 def _get_leverage_json():
     """ Creates leverage json object that is used in PATCH position test """
-    pass
+    return {"leverage": 2}
 
 
 class TestAccounts(object):
 
     RESOURCE_URL = "/accounts/"
-    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"}
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}
 
     def test_get(self, client):
         """
@@ -174,7 +184,7 @@ class TestAccounts(object):
         assert resp.status_code == 200
         body = json.loads(resp.data)
         _check_control_post_method("add-account", client, body)
-        assert len(body["items"]) == 3
+        assert len(body["items"]) == 4
         for item in body["items"]:
             _check_control_get_method("self", client, item, headers=self.VALID_API_SECRET)
             assert "accountname" in item
@@ -201,7 +211,7 @@ class TestAccounts(object):
         body = json.loads(resp.data)
         assert body["accountname"] == "user1"
         assert body["api_public"] == "79z47uUikMoPe2eADqfJzR1B"
-        assert body["api_secret"] == "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"
+        assert body["api_secret"] == "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"
 
         # send same data again for 409
         resp = client.post(self.RESOURCE_URL, json=valid)
@@ -213,9 +223,9 @@ class TestAccounts(object):
         assert resp.status_code == 400
 
 class TestAccount(object):
-    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRB1/"
+    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRBu/"
     INVALID_URL = "/accounts/79z47uUikMoPe2eADqfJzR69/"
-    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"}
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}
     INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
 
     def test_get(self, client):
@@ -237,13 +247,13 @@ class TestAccount(object):
         resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert body["accountname"] == "testuser-1"
-        assert body["api_public"] == "79z47uUikMoPe2eADqfJzRB1"
-        assert body["api_secret"] == "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"
+        assert body["accountname"] == "realuser"
+        assert body["api_public"] == "79z47uUikMoPe2eADqfJzRBu"
+        assert body["api_secret"] == "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"
 
         _check_control_get_method("orders-all", client, body, headers=self.VALID_API_SECRET)
-        # for some reason gets stuck
-        # _check_control_get_method("positions-all", client, body, headers=self.VALID_API_SECRET)
+        # gets stuck because the apikey used in the request is not valid apikey that is used in bitmex
+        _check_control_get_method("positions-all", client, body, headers=self.VALID_API_SECRET)
         _check_control_get_method("accounts-all", client, body)
         _check_control_delete_method("delete", client, body, headers=self.VALID_API_SECRET)
 
@@ -267,9 +277,9 @@ class TestAccount(object):
         assert resp.status_code == 404
 
 class TestOrders(object):
-    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRB1/orders/"
+    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRBu/orders/"
     INVALID_URL = "/accounts/79z47uUikMoPe2eADqfJzR69/orders/"
-    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"}
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}
     INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
 
     def test_get(self, client):
@@ -337,23 +347,153 @@ class TestOrders(object):
         """
 
 class TestOrder(object):
+    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRBu/orders/00000000-0000-0000-0000-000000000000/"
+    INVALID_URL = "/accounts/79z47uUikMoPe2eADqfJzR69/orders/10000000-0000-0000-0000-000000000001/"
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}
+    INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
+
     def test_get(self, client):
-        pass
+
+        # send with wrong api_secret for 401
+        resp = client.get(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
+        assert resp.status_code == 401
+
+        # invalid url for 404
+        resp = client.get(self.INVALID_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 404
+
+        # get with valid api_secret
+        resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+
+        assert body["price"] == 3567.5
+        assert body["size"] == 1
+        assert body["symbol"] == "XBTUSD"
+        assert body["side"] == "Buy"
+
+        _check_control_get_method("self", client, body, headers=self.VALID_API_SECRET)
+        _check_control_get_method("orders-all", client, body, headers=self.VALID_API_SECRET)
+        _check_control_delete_method("delete", client, body, headers=self.VALID_API_SECRET)
 
     def test_delete(self, client):
-        pass
+
+        # Send with wrong api_secret for 401
+        resp = client.delete(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
+        assert resp.status_code == 401
+
+        #  Send with right url and check after if the resource exists
+        resp = client.delete(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 204
+        resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 404
+
+        #  send with wrong url for 404
+        resp = client.delete(self.INVALID_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 404
+
 
 class TestPriceAction(object):
+    RESOURCE_URL = "/priceaction/"
+    VALID_DATA = {"symbol": "XBTUSD"}
+    INVALID_DATA = {}
+
     def test_get(self, client):
-        pass
+        """
+        Tests get method and the controls that has been implemented.
+        """
+        # send get with valid query parameter
+        resp = client.get(self.RESOURCE_URL, query_string=self.VALID_DATA)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        _check_control_get_method("self", client, body)
+
+        # send get with invalid query parameter for 400
+        resp = client.get(self.RESOURCE_URL, query_string=self.INVALID_DATA)
+        assert resp.status_code == 400
+
 
 class TestPositions(object):
+    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRBu/positions/"
+    INVALID_URL = "/accounts/79z47uUikMoPe2eADqfJzRxx/positions/"
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}
+    INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
+
     def test_get(self, client):
-        pass
+        # send get with invalid api secret for 401
+        resp = client.get(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
+        assert resp.status_code == 401
+
+        # invalid url for 404
+        resp = client.get(self.INVALID_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 404
+
+        # get with valid api_secret
+        resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        # Checks if we have three active positions in BitMEX test net like we should
+        assert len(body["items"]) == 3
+        _check_control_get_method("account", client, body, headers=self.VALID_API_SECRET)
+        for item in body["items"]:
+            _check_control_get_method("self", client, item, headers=self.VALID_API_SECRET)
+            assert "symbol" in item
+            assert "size" in item
+            assert "leverage" in item
+            assert "avgEntryPrice" in item
+            assert "liquidationPrice" in item
 
 class TestPosition(object):
+    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRBu/positions/ADAM19/"
+    INVALID_URL = "/accounts/79z47uUikMoPe2eADqfJzRxx/positions/asdf123/"
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}
+    INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
+
+
     def test_get(self, client):
-        pass
+        resp = client.get(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
+        assert resp.status_code == 401
+
+        # invalid url for 404
+        resp = client.get(self.INVALID_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 404
+
+        # get with valid api_secret
+        resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        _check_control_get_method("self", client, body, headers=self.VALID_API_SECRET)
+        _check_control_get_method("positions-all", client, body, headers=self.VALID_API_SECRET)
+        # _check_control_patch_method("edit", client, body, headers=self.VALID_API_SECRET)
 
     def test_patch(self, client):
+        """
+        valid = _get_leverage_json()
+
+        # test with wrong content type for 415
+        resp = client.patch(self.RESOURCE_URL, data=json.dumps(valid), headers=self.VALID_API_SECRET)
+        assert resp.status_code == 415
+
+        # test with wrong url for 404
+        resp = client.patch(self.INVALID_URL, json=valid, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 404
+
+        # test with wrong api_secret for 401
+        resp = client.put(self.RESOURCE_URL, json=valid, headers=self.INVALID_API_SECRET)
+        assert resp.status_code == 401
+
+
+        # check that leverage is 1
+        resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        assert body["leverage"] == 1
+        # send patch and check if leverage is 2
+        resp = client.patch(self.RESOURCE_URL, json=valid, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 204
+        resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        assert body["leverage"] == 2
+        """
         pass

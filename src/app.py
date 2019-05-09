@@ -427,7 +427,7 @@ class PriceAction(Resource):
                                          price = trade["price"])
                     body.add_control("buckets", href=api.url_for(BucketedPriceAction) + "?{timebucket}",
                                      title="Trades in time buckets")
-                    body.add_control("self", href=api.url_for(PriceAction))
+                    body.add_control("self", href=api.url_for(PriceAction) + "?symbol={}".format(trade["symbol"]))
                 return Response(json.dumps(body), status=200, mimetype=MASON)
         except:
             print(traceback.format_exc())

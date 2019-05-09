@@ -547,6 +547,13 @@ class Position(Resource):
         if not authorize(acc, request):
             return create_error_response(401, "Unauthorized", "No API-key or wrong API-key")
 
+        if not request.json:
+            return create_error_response(415, "Unsupported media type", "Requests must be JSON")
+        try:
+            validate(request.json, MasonControls.position_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
         try:
 
             data = {}
@@ -557,8 +564,8 @@ class Position(Resource):
             #Create signature and headers with BitMEXWebsocket generate signature function
 
             nonce = generate_nonce()
-            api_secret = 'j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd'
-            apikey = '79z47uUikMoPe2eADqfJzRBu'
+            api_secret = request.headers["api_secret"]
+            apikey = apikey
 
             headers = {
                     "api-nonce" : str(nonce),
@@ -567,9 +574,10 @@ class Position(Resource):
                 }
 
             res = requests.post('https://testnet.bitmex.com' + url, json=data, headers=headers)
-            return Response(json.dumps(data), status=200, mimetype="application/json")
+            return Response(status=204)
+
         except ValueError:
-            pass
+            return "sometingwong", 400
 
 
 

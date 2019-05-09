@@ -145,6 +145,10 @@ def _check_control_patch_method(ctrl, client, obj, headers=None):
     validate(body, schema)
     resp = client.patch(href, json=body, headers=headers)
     assert resp.status_code == 204
+    # change it back for other test
+    body = {"leverage": 1}
+    resp = client.patch(href, json=body, headers=headers)
+    assert resp.status_code == 204
 
 def _get_account_json(number=1):
     """ Creates account json object that is used in POST account test """
@@ -479,8 +483,12 @@ class TestPosition(object):
         assert resp.status_code == 404
 
         # test with wrong api_secret for 401
-        resp = client.put(self.RESOURCE_URL, json=valid, headers=self.INVALID_API_SECRET)
+        resp = client.patch(self.RESOURCE_URL, json=valid, headers=self.INVALID_API_SECRET)
         assert resp.status_code == 401
+
+        # get wrong json for 400
+        resp = client.patch(self.RESOURCE_URL, json=_get_order_json(), headers=self.VALID_API_SECRET)
+        assert resp.status_code == 400
 
 
         # check that leverage is 1

@@ -92,7 +92,7 @@ class MasonControls(MasonBuilder):
         return schema
 
     def add_control_accounts(self):
-        self.add_control("accounts", href=api.url_for(Accounts),
+        self.add_control("accounts-all", href=api.url_for(Accounts),
                         method="GET",
                         title="List all the accounts registered")
 
@@ -102,7 +102,7 @@ class MasonControls(MasonBuilder):
                         title="Login to account")
 
     def add_control_orders(self, apikey):
-        self.add_control("orders", href=api.url_for(OrdersResource, apikey=apikey),
+        self.add_control("orders-all", href=api.url_for(OrdersResource, apikey=apikey),
                         method="GET",
                         title="Get open orders")
 
@@ -117,7 +117,7 @@ class MasonControls(MasonBuilder):
                         title="Show recent trades that happened in the market")
 
     def add_control_positions(self, apikey):
-        self.add_control("positions", href=api.url_for(Positions, apikey=apikey),
+        self.add_control("positions-all", href=api.url_for(Positions, apikey=apikey),
                         method="GET",
                         title="Get open positions")
 
@@ -228,6 +228,7 @@ class Account(Resource):
         body.add_control_positions(apikey)
         body.add_control_transactionhistory(apikey)
         body.add_control_delete_account(apikey)
+        body.add_control_accounts()
         return Response(json.dumps(body), status=200, mimetype=MASON)
 
     def delete(self, apikey):
@@ -380,7 +381,7 @@ class OrderResource(Resource):
                              size = order.order_size)
 
         body.add_control("self", api.url_for(OrderResource, apikey=apikey, orderid=order.order_id))
-        body.add_control("collection", api.url_for(OrdersResource))
+        body.add_control_orders(apikey)
         body.add_control_delete_order(apikey, orderid)
 
         return Response(json.dumps(body), status=200, mimetype=MASON)
@@ -431,7 +432,7 @@ class PriceAction(Resource):
                                          price = trade["price"])
                     body.add_control("buckets", href=api.url_for(BucketedPriceAction) + "?{timebucket}",
                                      title="Trades in time buckets")
-                    body.add_control("self", href=api.url_for(PriceAction))
+                    body.add_control("self", href=api.url_for(PriceAction) + "?symbol={}".format(trade["symbol"]))
                 return Response(json.dumps(body), status=200, mimetype=MASON)
         except:
             print(traceback.format_exc())

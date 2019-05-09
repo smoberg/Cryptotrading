@@ -23,12 +23,13 @@ def db_handle():
     db_fd, db_fname = tempfile.mkstemp()
     app.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_fname
     app.app.config["TESTING"] = True
+    app.app.config["DEBUG"] = False
     db.init_app(app.app)
 
     with app.app.app_context():
         db.create_all()
 
-    yield db
+        yield db
 
     db.session.remove()
     os.close(db_fd)
@@ -43,7 +44,7 @@ def _get_user(number=1):
 def _get_order(number=1):
     """ Creates order model """
     return Orders(order_id='00000000-0000-0000-0000-00000000000{}'.format(number),
-                  order_size=1, order_side='Buy',
+                  order_price=3567.5, order_size=1, order_side='Buy',
                   order_symbol="XBTUSD")
 
 def test_create_instances(db_handle):
@@ -55,49 +56,49 @@ def test_create_instances(db_handle):
     """
 
     # Make everything, add order to user's order relationship
-    with app.app.app_context():
-        user = _get_user()
-        order = _get_order()
-        user.orders.append(order)
-        db_handle.session.add(user)
-        db_handle.session.add(order)
-        db.session.commit()
-        # Check that everything exists
-        assert User.query.count() == 1
-        assert Orders.query.count() == 1
-        db_user = User.query.first()
-        db_order = Orders.query.first()
-        # Relationship check
-        assert db_order in db_user.orders
-        assert db_user == db_order.user
+
+    user = _get_user()
+    order = _get_order()
+    user.orders.append(order)
+    db_handle.session.add(user)
+    db_handle.session.add(order)
+    db.session.commit()
+    # Check that everything exists
+    assert User.query.count() == 1
+    assert Orders.query.count() == 1
+    db_user = User.query.first()
+    db_order = Orders.query.first()
+    # Relationship check
+    assert db_order in db_user.orders
+    assert db_user == db_order.user
 
 def test_order_ondelete_user(db_handle):
     """
     Tests that foreign key in order is set to null if user is deleted.
     """
-    with app.app.app_context():
-        user = _get_user()
-        order = _get_order()
-        user.orders.append(order)
-        db_handle.session.add(order)
-        db_handle.session.commit()
-        db_handle.session.delete(user)
-        db_handle.session.commit()
-        assert order.user_id is None
+
+    user = _get_user()
+    order = _get_order()
+    user.orders.append(order)
+    db_handle.session.add(order)
+    db_handle.session.commit()
+    db_handle.session.delete(user)
+    db_handle.session.commit()
+    assert order.user_id is None
 
 def test_order_onupdate_user(db_handle):
     """
     Tests that foreign key in order is cascaded properly if user.id is modified
     """
-    with app.app.app_context():
-        user = _get_user()
-        order = _get_order()
-        user.orders.append(order)
-        db_handle.session.add(user)
-        db_handle.session.add(order)
-        db.session.commit()
-        db_user = User.query.first()
-        db_user.id = 73
-        db.session.commit()
-        db_order = Orders.query.first()
-        assert db_order.user_id == 73
+
+    user = _get_user()
+    order = _get_order()
+    user.orders.append(order)
+    db_handle.session.add(user)
+    db_handle.session.add(order)
+    db.session.commit()
+    db_user = User.query.first()
+    db_user.id = 73
+    db.session.commit()
+    db_order = Orders.query.first()
+    assert db_order.user_id == 73

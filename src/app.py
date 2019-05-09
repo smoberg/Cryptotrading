@@ -376,7 +376,7 @@ class OrderResource(Resource):
                              size = order.order_size)
 
         body.add_control("self", api.url_for(OrderResource, apikey=apikey, orderid=order.order_id))
-        body.add_control("collection", api.url_for(OrdersResource))
+        body.add_control_orders(apikey)
         body.add_control_delete_order(apikey, orderid)
 
         return Response(json.dumps(body), status=200, mimetype=MASON)

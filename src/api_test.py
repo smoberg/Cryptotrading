@@ -32,7 +32,7 @@ def client():
         db.create_all()
         _populate_db()
 
-    yield app.test_client()
+        yield app.test_client()
 
     db.session.remove()
     os.close(db_fd)
@@ -85,7 +85,7 @@ def _check_control_delete_method(ctrl, client, obj, headers=None):
         resp = client.delete(href)
         assert resp.status_code == 204
 
-def _check_control_post_method(ctrl, client, obj):
+def _check_control_post_method(ctrl, client, obj, headers=None):
     """
     Checks a POST type control from a JSON object be it root document or an item
     in a collection. In addition to checking the "href" attribute, also checks
@@ -107,8 +107,12 @@ def _check_control_post_method(ctrl, client, obj):
     if ctrl == "add-order":
         body = _get_order_json()
     validate(body, schema)
-    resp = client.post(href, json=body)
-    assert resp.status_code == 201
+    if headers:
+        resp = client.post(href, json=body, headers=headers)
+        assert resp.status_code == 201
+    else:
+        resp = client.post(href, json=body)
+        assert resp.status_code == 201
 
 def _check_control_patch_method(ctrl, client, obj):
     """
@@ -140,7 +144,13 @@ def _get_account_json(number=1):
 
 def _get_order_json():
     """ Creates order json object that is used in POST order test """
-    pass
+    return {
+            "price": 3837.5,
+            "symbol": "XBTUSD",
+            "side": "Buy",
+            "size": 1
+            }
+
 
 def _get_leverage_json():
     """ Creates leverage json object that is used in PATCH position test """
@@ -150,6 +160,7 @@ def _get_leverage_json():
 class TestAccounts(object):
 
     RESOURCE_URL = "/accounts/"
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"}
 
     def test_get(self, client):
         """
@@ -165,8 +176,7 @@ class TestAccounts(object):
         _check_control_post_method("add-account", client, body)
         assert len(body["items"]) == 3
         for item in body["items"]:
-            headers = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"}
-            _check_control_get_method("self", client, item, headers)
+            _check_control_get_method("self", client, item, headers=self.VALID_API_SECRET)
             assert "accountname" in item
             assert "api_public" in item
 
@@ -186,7 +196,7 @@ class TestAccounts(object):
         resp = client.post(self.RESOURCE_URL, json=valid)
         assert resp.status_code == 201
         assert resp.headers["Location"].endswith(self.RESOURCE_URL + valid["api_public"] + "/")
-        resp = client.get(resp.headers["Location"], headers={"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"})
+        resp = client.get(resp.headers["Location"], headers=self.VALID_API_SECRET)
         assert resp.status_code == 200
         body = json.loads(resp.data)
         assert body["accountname"] == "user1"
@@ -257,16 +267,93 @@ class TestAccount(object):
         assert resp.status_code == 404
 
 class TestOrders(object):
-    pass
+    RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRB1/orders/"
+    INVALID_URL = "/accounts/79z47uUikMoPe2eADqfJzR69/orders/"
+    VALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjy"}
+    INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
+
+    def test_get(self, client):
+        """
+        Tests the GET method
+        """
+        # send with wrong api_secret for 401
+        resp = client.get(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
+        assert resp.status_code == 401
+
+        # invalid url for 404
+        resp = client.get(self.INVALID_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 404
+
+        # get with valid api_secret
+        resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        # orderie postaus ei vielä implementoitu
+        # _check_control_post_method("add-order", client, body, headers=self.VALID_API_SECRET)
+        assert len(body["items"]) == 1
+        for item in body["items"]:
+            _check_control_get_method("self", client, item, headers=self.VALID_API_SECRET)
+            assert "order_id" in item
+            assert "order_price" in item
+            assert "order_size" in item
+            assert "order_side" in item
+            assert "order_symbol" in item
+
+    def test_post(self, client):
+        """
+        Tests the POST method. Checks all of the possible error codes, and
+        also checks that a valid request receives a 201 response with a
+        location header that leads into the newly created resource.
+        """
+
+        """
+        valid = _get_order_json()
+
+        # test with wrong content type
+        resp = client.post(self.RESOURCE_URL, data=json.dumps(valid), headers=self.VALID_API_SECRET)
+        assert resp.status_code == 415
+
+        # test with valid and see that it exists afterward
+        resp = client.post(self.RESOURCE_URL, json=valid, headers=self.VALID_API_SECRET)
+        assert resp.status_code == 201
+        # tän testin voi skippaa ehk ku ei meil oo tietoo siit order id etukätee
+        # assert resp.headers["Location"].endswith(self.RESOURCE_URL + valid["order_id"] + "/")
+        resp = client.get(resp.headers["Location"], headers=self.VALID_API_SECRET)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        assert body["order_price"] == 3837.5
+        assert body["order_size"] == 1
+        assert body["order_symbol"] == "XBTUSD"
+        assert body["order_side"] == "Buy"
+
+        # send same data again for 409
+        resp = client.post(self.RESOURCE_URL, json=valid)
+        assert resp.status_code == 409
+
+        # remove accountname field for 400
+        valid.pop("order_side")
+        resp = client.post(self.RESOURCE_URL, json=valid)
+        assert resp.status_code == 400
+        """
 
 class TestOrder(object):
-    pass
+    def test_get(self, client):
+        pass
+
+    def test_delete(self, client):
+        pass
 
 class TestPriceAction(object):
-    pass
+    def test_get(self, client):
+        pass
 
 class TestPositions(object):
-    pass
+    def test_get(self, client):
+        pass
 
 class TestPosition(object):
-    pass
+    def test_get(self, client):
+        pass
+
+    def test_patch(self, client):
+        pass

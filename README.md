@@ -5,10 +5,9 @@
 * Student 2. Juuso Säärelä juuso.saarela@student.oulu.fi
 * Student 3. Joonas Hilke joonas.hilke@gmail.com
 
-# Testing the database (Deadline 2)
-Database can be tested by running the database_test.py script inside src directory.
+# Testing the database and the api
+Tests can be performed by running pytest inside src directory.
 
-List of dependencies:
 Python version 3.6.8
 
 Following python libraries:

@@ -7,11 +7,13 @@
 
 # Setting up
 
-Installing dependencies:
+## Installing dependencies:
+Go to src directory and run command:
 
-pip install -r requirements.txt
+`pip install -r requirements.txt`
 
-# Testing the database and the Api
-Tests can be performed by running pytest inside src directory.
+# Performing tests the database and the Api
+Tests for the API and the database were done using pytest.
+To run all the tests use command `pytest` inside src directory
 
 

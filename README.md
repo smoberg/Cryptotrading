@@ -5,12 +5,13 @@
 * Student 2. Juuso Säärelä juuso.saarela@student.oulu.fi
 * Student 3. Joonas Hilke joonas.hilke@gmail.com
 
-# Testing the database (Deadline 2)
-Database can be tested by running the database_test.py script inside src directory.
+# Setting up
 
-List of dependencies:
-Python version 3.6.8
+Installing dependencies:
 
-Following python libraries:
-flask, flask-sqlalchemy, pysqlite3
+pip install -r requirements.txt
+
+# Testing the database and the Api
+Tests can be performed by running pytest inside src directory.
+
 

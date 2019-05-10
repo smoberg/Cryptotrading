@@ -63,7 +63,7 @@ APIARY STUFF
 
 ### Minutes
 *Summary of what was discussed during the meeting*
-
+Implementation of the API was not done yet. To speed up the process to make the deadline. Commandline client was approved.
 ### Action points
 *List here the actions points discussed with assistants*
 

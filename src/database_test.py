@@ -8,7 +8,8 @@ from sqlalchemy import event
 
 
 """
-These tests are based on the database testing example found in lovelace
+These tests are based on the database testing example introduced in the
+course material
 
 """
 
@@ -20,6 +21,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 @pytest.fixture
 def db_handle():
+    """ Creates database fixture for testing """
     db_fd, db_fname = tempfile.mkstemp()
     app.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_fname
     app.app.config["TESTING"] = True

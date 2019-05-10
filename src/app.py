@@ -29,9 +29,14 @@ with app.app_context():
     db.create_all()
 
 class MasonControls(MasonBuilder):
-    # attaches mason hypermedia controls to response bodies
+    """ Based on the MasonControls class thas was used in Exercise 3
+        Makes the response bodies and attaches Hypermedia controls to
+        them. Also, holds the schemas for POST and PATCH methods.
+    """
+
     @staticmethod
     def account_schema():
+        """Schema of the account"""
         schema = {
             "type": "object",
             "required": ["accountname", "api_public", "api_secret"]
@@ -54,6 +59,7 @@ class MasonControls(MasonBuilder):
 
     @staticmethod
     def order_schema():
+        """Schema of the order"""
         schema = {
             "type": "object",
             "required": ["symbol", "size", "price", "side"]
@@ -80,6 +86,7 @@ class MasonControls(MasonBuilder):
 
     @staticmethod
     def position_schema():
+        """ Schema for the position patch method """
         schema = {
             "type": "object",
             "required": ["leverage"]
@@ -92,46 +99,55 @@ class MasonControls(MasonBuilder):
         return schema
 
     def add_control_accounts(self):
+        """ adds accounts-all control to response body """
         self.add_control("accounts-all", href=api.url_for(Accounts),
                         method="GET",
                         title="List all the accounts registered")
 
     def add_control_account(self, apikey):
+        """ adds account control to response body """
         self.add_control("account", href=api.url_for(Account, apikey=apikey),
                         method="GET",
                         title="Login to account")
 
     def add_control_orders(self, apikey):
+        """ adds orders-all control to response body """
         self.add_control("orders-all", href=api.url_for(OrdersResource, apikey=apikey),
                         method="GET",
                         title="Get open orders")
 
     def add_control_orderbook(self):
+        """ adds orderbook control to response body """
         self.add_control("orderbook", href=api.url_for(OrderBook),
                         method="GET",
                         title="Get order book data")
 
     def add_control_priceaction(self):
+        """ adds priceaction control to response body """
         self.add_control("priceaction", href=api.url_for(PriceAction),
                         method="GET",
                         title="Show recent trades that happened in the market")
 
     def add_control_positions(self, apikey):
+        """ adds positions-all control to response body """
         self.add_control("positions-all", href=api.url_for(Positions, apikey=apikey),
                         method="GET",
                         title="Get open positions")
 
     def add_control_accountbalance(self, apikey):
+        """ adds balance control to response body """
         self.add_control("balance", href=api.url_for(AccountBalance, apikey=apikey),
                         method="GET",
                         title="Get account balance")
 
     def add_control_transactionhistory(self, apikey):
+        """ adds transactions control to response body """
         self.add_control("transactions", href=api.url_for(TransactionHistory, apikey=apikey),
                         method="GET",
                         title="Get history of the wallet transactions")
 
     def add_control_add_account(self):
+        """ adds add-account control to response body """
         self.add_control("add-account", href=api.url_for(Accounts),
                         method="POST",
                         encoding="json",
@@ -139,12 +155,14 @@ class MasonControls(MasonBuilder):
                         schema=self.account_schema())
 
     def add_control_delete_account(self, apikey):
+        """ adds delete control for deleting to response body """
         self.add_control("delete", href=api.url_for(Account, apikey=apikey),
                         method="DELETE",
                         title="delete this account")
 
 
     def add_control_add_order(self, apikey):
+        """ adds add-order control to response body """
         self.add_control("add-order", href=api.url_for(OrdersResource, apikey=apikey),
                         method="POST",
                         encoding="json",
@@ -152,6 +170,7 @@ class MasonControls(MasonBuilder):
                         schema=self.order_schema())
 
     def add_control_delete_order(self, apikey, orderid):
+        """ adds delete control for deleting orders to response body """
         self.add_control("delete", href=api.url_for(OrderResource, apikey=apikey, orderid=orderid),
                         method="DELETE",
                         title="delete this order")
@@ -162,9 +181,8 @@ def entrypoint():
     """ This is the view function for the API entry point """
     body = MasonControls()
     body.add_control_accounts()
-    body.add_control_orderbook()
+    body.add_control_orderbook() # resource is not implemented
     body.add_control_priceaction()
-    # pitää ehkä laittaa headeriin Accept: application/vnd.mason+json
     return Response(json.dumps(body), status=200, mimetype=MASON)
 
 class Accounts(Resource):
@@ -243,13 +261,13 @@ class Account(Resource):
         db.session.commit()
         return Response(status=204)
 
-    def put(self, apikey):
-        return Response(status=503)
+
 
 
 def authorize(model, request):
-    # takes in user model and request object
-    # compares request object's api key to the saved api key in the database
+    """ takes in user model and request object
+        compares request object's api key to the saved api key in the database
+    """
     try:
          secret = request.headers["api_secret"]
     except KeyError:
@@ -279,6 +297,7 @@ class AccountBalance(Resource):
         return Response(body, status=200, mimetype=MASON)
 
 class TransactionHistory(Resource):
+    """ not implemented """
     def get(self, apikey):
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
@@ -294,6 +313,7 @@ class TransactionHistory(Resource):
 
 class OrdersResource(Resource):
     def get(self, apikey):
+        """ lists the active orders made by the user """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist",
@@ -326,6 +346,9 @@ class OrdersResource(Resource):
 
 
     def post(self, apikey):
+        """ posts new order to BitMEX test net and adds the order
+            and its information to database.
+        """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist",
@@ -363,6 +386,7 @@ class OrdersResource(Resource):
 
 class OrderResource(Resource):
     def get(self, apikey, orderid):
+        """ gets single order indetified by its url from the database """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist",
@@ -387,6 +411,10 @@ class OrderResource(Resource):
         return Response(json.dumps(body), status=200, mimetype=MASON)
 
     def delete(self, apikey, orderid):
+        """ deletes a single order from the BitMEX testnet
+            and upon succesful deletion deletes the order from
+            database.
+        """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
@@ -405,18 +433,23 @@ class OrderResource(Resource):
         return Response(status=204)
 
     def put(self, apikey, orderid):
-        # Implement order amending if there is time
+        # not implemented
         return Response(status=503)
 
 class OrderHistory(Resource):
+    # not implemented
     def get(self):
         return Response(status=503)
 
 class OrderBook(Resource):
+    # not implemented
     def get(self):
         return Response(status=503)
 
 class PriceAction(Resource):
+    """ gets the most recent trade from the BitMEX
+        needs symbol of the trade in query variable.
+    """
     def get(self):
         if not request.args:
             return create_error_response(400, "Query Error", 'Missing Query Parameter "symbol"')
@@ -439,10 +472,12 @@ class PriceAction(Resource):
             return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
 class BucketedPriceAction(Resource):
+    # not implemented
     def get(self):
         return Response(status=503)
 
 class Positions(Resource):
+    """ Gets active positions from the BitMEX testnet """
     def get(self, apikey):
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
@@ -488,6 +523,7 @@ class Positions(Resource):
 
 class Position(Resource):
     def get(self, apikey, symbol):
+        """ Gets a single active position from the BitMEX testnet """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist", "Account with api-key '{}' does not exist.".format(apikey))
@@ -540,6 +576,7 @@ class Position(Resource):
             return create_error_response(400, "Query Error", "Query Parameter doesn't exist")
 
     def patch(self, apikey, symbol):
+        """ Edits active position's leverage attribute """
         acc = User.query.filter_by(api_public=apikey).first()
         if not acc:
             return create_error_response(404, "Account does not exist",
@@ -581,14 +618,7 @@ class Position(Resource):
 
 
 
-
-
-
-
-
-
-
-
+""" routes for the resources """
 api.add_resource(Accounts,"/accounts/")
 api.add_resource(Account,"/accounts/<apikey>/")
 api.add_resource(OrdersResource,"/accounts/<apikey>/orders/")
@@ -603,6 +633,9 @@ api.add_resource(AccountBalance, "/accounts/<apikey>/balance/")
 api.add_resource(BucketedPriceAction, "/priceaction/bucketed/")
 
 def create_error_response(status_code, title, message=None):
+    """ creates error responses using mason builder
+        Based on the one used in Exercise 3 of the course.
+    """
     resource_url = request.path
     body = MasonBuilder(resource_url=resource_url)
     body.add_error(title, message)

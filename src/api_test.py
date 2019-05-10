@@ -10,7 +10,7 @@ from jsonschema import validate
 
 
 """
-These tests are based on the api testing example found in lovelace
+These tests are based on the api testing example introduce in the course material
 
 """
 
@@ -22,6 +22,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 @pytest.fixture
 def client():
+    """ creates app fixture for testing """
     db_fd, db_fname = tempfile.mkstemp()
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_fname
     app.config["TESTING"] = True
@@ -131,7 +132,7 @@ def _check_control_patch_method(ctrl, client, obj, headers=None):
     that method, encoding and schema can be found from the control. Also
     validates a valid sensor against the schema of the control to ensure that
     they match. Finally checks that using the control results in the correct
-    status code of 204.
+    status code of 204. After the test changes leverage back to 1 for the other tests
     """
 
     ctrl_obj = obj["@controls"][ctrl]
@@ -164,7 +165,6 @@ def _get_order_json():
             "side": "Buy",
             "size": 1
             }
-
 
 def _get_leverage_json():
     """ Creates leverage json object that is used in PATCH position test """
@@ -357,7 +357,11 @@ class TestOrder(object):
     INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
 
     def test_get(self, client):
-
+        """
+        Tests the get method, first checks for correct error responses, then
+        does valid request and checks if the response data has all the required
+        fields and the hypermedia controls work.
+        """
         # send with wrong api_secret for 401
         resp = client.get(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
         assert resp.status_code == 401
@@ -381,6 +385,10 @@ class TestOrder(object):
         _check_control_delete_method("delete", client, body, headers=self.VALID_API_SECRET)
 
     def test_delete(self, client):
+        """
+        Tests the delete method, first checks for correct error responses, then
+        does valid request checks if the resource exist after the delete request
+        """
 
         # Send with wrong api_secret for 401
         resp = client.delete(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
@@ -405,6 +413,7 @@ class TestPriceAction(object):
     def test_get(self, client):
         """
         Tests get method and the controls that has been implemented.
+        Checks that the wrong query parameter gives proper error response
         """
         # send get with valid query parameter
         resp = client.get(self.RESOURCE_URL, query_string=self.VALID_DATA)
@@ -424,6 +433,12 @@ class TestPositions(object):
     INVALID_API_SECRET = {"api_secret": "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8G123"}
 
     def test_get(self, client):
+        """
+        Tests the get method, first checks for correct error responses, then
+        does valid request and checks if the response data has all the required
+        fields and the hypermedia controls work. Because the positions are active positions
+        in BitMEX test net, their amount can change and test assert might fail.
+        """
         # send get with invalid api secret for 401
         resp = client.get(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
         assert resp.status_code == 401
@@ -437,7 +452,7 @@ class TestPositions(object):
         assert resp.status_code == 200
         body = json.loads(resp.data)
         # Checks if we have three active positions in BitMEX test net like we should
-        assert len(body["items"]) == 3
+        assert len(body["items"]) == 2
         _check_control_get_method("account", client, body, headers=self.VALID_API_SECRET)
         for item in body["items"]:
             _check_control_get_method("self", client, item, headers=self.VALID_API_SECRET)
@@ -455,6 +470,12 @@ class TestPosition(object):
 
 
     def test_get(self, client):
+        """
+        Tests the get method, first checks for correct error responses, then
+        does valid request and checks if the response data has all the required
+        fields and the hypermedia controls work.
+        """
+
         resp = client.get(self.RESOURCE_URL, headers=self.INVALID_API_SECRET)
         assert resp.status_code == 401
 
@@ -468,9 +489,14 @@ class TestPosition(object):
         body = json.loads(resp.data)
         _check_control_get_method("self", client, body, headers=self.VALID_API_SECRET)
         _check_control_get_method("positions-all", client, body, headers=self.VALID_API_SECRET)
-        # _check_control_patch_method("edit", client, body, headers=self.VALID_API_SECRET)
+        _check_control_patch_method("edit", client, body, headers=self.VALID_API_SECRET)
 
     def test_patch(self, client):
+        """
+        Tests the patch method, first checks for correct error responses
+        Then checks the leverage value from the resource, sends valid PATCH
+        request. Checks that status code is 204 and then checks that the
+        leverage was correctly changed.
         """
         valid = _get_leverage_json()
 
@@ -503,5 +529,3 @@ class TestPosition(object):
         assert resp.status_code == 200
         body = json.loads(resp.data)
         assert body["leverage"] == 2
-        """
-        pass

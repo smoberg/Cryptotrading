@@ -7,7 +7,7 @@
 
 # Setting up
 
-Installing dependencies:
+## Installing dependencies:
 Go to src directory and run command:
 
 `pip install -r requirements.txt`

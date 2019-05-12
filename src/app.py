@@ -519,6 +519,7 @@ class Positions(Resource):
             ws.exit()
             if positions:
                 for position in positions:
+
                     parsed_position_symbol = position["symbol"]
                     parsed_position_size = position["currentQty"]
                     if position["crossMargin"] == True:
@@ -534,7 +535,8 @@ class Positions(Resource):
                                                     avgEntryPrice = parsed_position_entyprice,
                                                     liquidationPrice = parsed_position_liquidationPrice)
                     parsed_position.add_control("self", href=api.url_for(Position, apikey=apikey, symbol=parsed_position_symbol))
-                    parsed_positions.append(parsed_position)
+                    if not position["currentQty"] == 0:
+                        parsed_positions.append(parsed_position)
 
             body = MasonControls(items=parsed_positions)
             body.add_control_account(apikey)

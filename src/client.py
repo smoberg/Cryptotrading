@@ -3,10 +3,11 @@ import requests
 import sys, os
 API_URL = "http://localhost:5000"
 
-def prompt_from_schema(s, ctrl):
-    """ Function used to get inputs from the user based on the schema """
-    """ Based on the function introduced in exercise 4. """
-    """ Takes in session attribute and the Mason control for POST/PUT request """
+def prompt_from_schema(ctrl):
+    """ Function used to get inputs from the user based on the schema
+        Based on the function introduced in exercise 4.
+        Takes in the Mason control for POST/PUT request
+    """
     body = {}
     if "schema" in ctrl:
         schema = ctrl["schema"]
@@ -18,12 +19,13 @@ def prompt_from_schema(s, ctrl):
             if inputvalue is not None:
                 inputvalue = convert_value(inputvalue, props)
             body[field] = inputvalue
-    return submit_data(s, ctrl, body)
 
+    return body
 
 def convert_value(value, schema_props):
-    """ Function used to convert user input strings to right format. """
-    """ Based on the function introduced in exercise 4 """
+    """ Function used to convert user input strings to right format.
+        Based on the function introduced in exercise 4
+    """
      if schema_props["type"] == "number":
             try:
                 value = int(value)
@@ -34,13 +36,15 @@ def convert_value(value, schema_props):
     return value
 
 def submit_data(s, ctrl, data, headers):
-    """ Function used for sending post and put requests. """
-    """ Based on the function introduced in exercise 4 """
+    """ Function used for sending post and put requests.
+        Based on the function introduced in exercise 4
+        takes in session, mason control, data and headers
+    """
     resp = s.request(
         ctrl["method"],
         API_URL + ctrl["href"],
         data=json.dumps(data),
-        headers = headers) # after logging in to account we need to change headers to contain secret apikey
+        headers = headers)
     return resp
 
 def mainmenu():
@@ -51,37 +55,61 @@ def mainmenu():
     print("Select (2) if you want to make a new account")
     print("Select (3) if you want to get the most recent trade")
 
-    pass
+    while True:
+        choice = input("Give your selection please: ")
+        if choice == 1:
+            # get accounts
+            pass
+        if choice == 2:
+            # prompt from account schema
+            pass
+        if choice == 3:
+            # got to price action
+            pass
+
 
 def priceactionmenu():
-    """ This menu has option to get price action data and do something with it """
+    """ This menu has option to get price action data"""
     os.system("clear")
     print("Input a trading pair to get its most recent pair or press (q) to go back to mainmenu")
-    
-
     pass
 
-def accountsmenu():
-    """ This menu has option to add account, or login to existing account """
-    """ Sends GET to accounts resource, shows list of accounts """
-    """ Select account to login or add new or back to mainmenu """
+def create_account():
+    """ Creates account by prompting from account schema and
+        submitting data, might need some parameters like session idk.
+    """
     pass
 
 def accountmenu():
-    """ Option to delete account """
-    """ Options to go for orders menu or to positions menu """
+    """ Option to delete account
+        Options to go for orders menu or to positions menu
+        Option to go to main menu (log out)
+    """
     pass
 
 def positionsmenu():
-    """ """
+    """ get positions, give functionality to select one or to go back to accountmenu
+
+    """
     pass
 
-def orderssmenu():
+def positionmenu():
+    """ Show one position, give functionality to change leverage or to go back to positionsmenu
+
+    """
+    pass
+
+def ordersmenu():
     """ Options for adding new order and for selecting one and deleting it or back to account """
     pass
 
-def main():
+def ordermenu():
+    """ Show one order, option to delete it or to go back to ordersmenu  """
+    pass
 
+def main():
+    mainmenu()
+    # vois mahollisesti käyttää ilma sessionia nii ois simppelimpi ehkä, emt
     with requests.Session() as s:
         resp = s.get(API_URL)
         body = resp.json()

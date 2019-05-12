@@ -371,18 +371,30 @@ class OrdersResource(Resource):
         # post to bitmex websocket api
         # Receive order id with other data
         # add the order then to our own database
+        url = '/api/v1/order'
 
-        order = Orders(order_id='00000000-0000-0000-0000-000000000000',
-                        order_size=1, order_side='Buy',
-                        order_symbol="XBTUSD", user=acc)
+        data = {"symbol" : request.json["symbol"],
+                "orderQty" : request.json["size"],
+                "price" : request.json["price"],
+                "side" : request.json["side"]
+        }
+
+        headers = generate_headers(request.headers["api_secret"], acc.api_public, url, "POST", data)
+
+        res = requests.post('https://testnet.bitmex.com' + url, json=data, headers=headers)
+        print(res.text)
+        json_response = json.loads(res.text)
+        order = Orders(order_id=json_response["orderID"],
+                        order_size=json_response["orderQty"], order_side=json_response["side"],
+                        order_symbol=json_response["symbol"], order_price=json_response["price"], user=acc)
         try:
             db.session.add(order)
             db.session.commit()
 
-        except IntegrityError:
+        except ValueError:
             return create_error_response(409, "Already exists", "")
 
-        return Response(status=201, headers={"Location": api.url_for(OrderResource, apikey=apikey, order_id='00000000-0000-0000-0000-000000000000')})
+        return Response(status=201, headers={"Location": api.url_for(OrdersResource, apikey=apikey, order_id='00000000-0000-0000-0000-000000000000')})
 
 class OrderResource(Resource):
     def get(self, apikey, orderid):
@@ -426,6 +438,17 @@ class OrderResource(Resource):
                return create_error_response(404, "Order does not exist", "Order with orderid '{}' does not exist.".format(orderid))
 
         # delete order in bitmex end
+        url = '/api/v1/order'
+
+        data = {"orderID" : orderid,
+        }
+
+        headers = generate_headers(request.headers["api_secret"], acc.api_public, url, "DELETE", data)
+
+        res = requests.delete('https://testnet.bitmex.com' + url, json=data, headers=headers)
+
+
+
         # if everything works, and deletion is succesfful, continue
 
         db.session.delete(order)
@@ -599,22 +622,28 @@ class Position(Resource):
 
             url = '/api/v1/position/leverage'
             #Create signature and headers with BitMEXWebsocket generate signature function
-
-            nonce = generate_nonce()
-            api_secret = request.headers["api_secret"]
-            apikey = apikey
-
-            headers = {
-                    "api-nonce" : str(nonce),
-                    "api-signature" :  generate_signature(api_secret, "POST", url, nonce, json.dumps(data)),
-                    "api-key" : apikey
-                }
+            headers = generate_headers(request.headers["api_secret"], acc.api_public, url, "POST", data)
 
             res = requests.post('https://testnet.bitmex.com' + url, json=data, headers=headers)
-            return Response(status=204)
-
+            print(res.status_code)
+            if res.status_code == 400:
+                return create_error_response(400, "Parameter Error", "One of the parameters have an invalid value")
+            return Response("", status=204, mimetype="application/json")
         except ValueError:
-            return "sometingwong", 400
+            return create_error_response(400, "Query Error", "Leverage must be a float value")
+
+
+
+
+def generate_headers(api_secret, api_public, url, method, data):
+    nonce = generate_nonce()
+    headers = {
+            "api-nonce" : str(nonce),
+            "api-signature" :  generate_signature(api_secret, method, url, nonce, json.dumps(data)),
+            "api-key" : api_public
+        }
+    return headers
+
 
 
 

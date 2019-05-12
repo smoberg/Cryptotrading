@@ -45,12 +45,19 @@ def submit_data(s, ctrl, data, headers):
 
 def mainmenu():
     """ This menu has has option to go for price action or account related part of the api """
+    os.system("clear")
+    print("Hello, this is the client application for Cryptotrading API")
+    print("Select (1) if you want to use existing account")
+    print("Select (2) if you want to make a new account")
+    print("Select (3) if you want to get the most recent trade")
+
     pass
 
 def priceactionmenu():
     """ This menu has option to get price action data and do something with it """
     os.system("clear")
-    print("Choose ")
+    print("Input a trading pair to get its most recent pair or press (q) to go back to mainmenu")
+    
 
     pass
 

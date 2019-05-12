@@ -331,11 +331,11 @@ class OrdersResource(Resource):
             return Response(json.dumps(body), status=200, mimetype=MASON)
 
         for order in orderlist_q:
-            orderbody=MasonControls(order_id = order.order_id,
-                                    order_price = order.order_price,
-                                    order_symbol = order.order_symbol,
-                                    order_side = order.order_side,
-                                    order_size = order.order_size)
+            orderbody=MasonControls(id = order.order_id,
+                                    price = order.order_price,
+                                    symbol = order.order_symbol,
+                                    side = order.order_side,
+                                    size = order.order_size)
             orderbody.add_control("self", api.url_for(OrderResource, apikey=acc.api_public, orderid=order.order_id))
             # add maybe link to order profile
             orderlist.append(orderbody)
@@ -363,10 +363,7 @@ class OrdersResource(Resource):
         except ValidationError as e:
             return create_error_response(400, "Invalid JSON document", str(e))
 
-        symbol = request.json["symbol"]
-        size = request.json["size"]
-        price = request.json["price"]
-        side = request.json["side"]
+
 
         # post to bitmex websocket api
         # Receive order id with other data
@@ -382,7 +379,7 @@ class OrdersResource(Resource):
         headers = generate_headers(request.headers["api_secret"], acc.api_public, url, "POST", data)
 
         res = requests.post('https://testnet.bitmex.com' + url, json=data, headers=headers)
-        print(res.text)
+        # print(res.text)
         json_response = json.loads(res.text)
         order = Orders(order_id=json_response["orderID"],
                         order_size=json_response["orderQty"], order_side=json_response["side"],
@@ -394,7 +391,7 @@ class OrdersResource(Resource):
         except ValueError:
             return create_error_response(409, "Already exists", "")
 
-        return Response(status=201, headers={"Location": api.url_for(OrdersResource, apikey=apikey, order_id='00000000-0000-0000-0000-000000000000')})
+        return Response(status=201, headers={"Location": api.url_for(OrderResource, apikey=apikey, orderid=json_response["orderID"])})
 
 class OrderResource(Resource):
     def get(self, apikey, orderid):

@@ -163,7 +163,7 @@ def _get_order_json():
             "price": 3837.5,
             "symbol": "XBTUSD",
             "side": "Buy",
-            "size": 1
+            "size": 20
             }
 
 def _get_leverage_json():
@@ -302,24 +302,22 @@ class TestOrders(object):
         resp = client.get(self.RESOURCE_URL, headers=self.VALID_API_SECRET)
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        # orderie postaus ei vielä implementoitu
+        # we dont want to post unnecessary orders to bitmex
         # _check_control_post_method("add-order", client, body, headers=self.VALID_API_SECRET)
         assert len(body["items"]) == 1
         for item in body["items"]:
             _check_control_get_method("self", client, item, headers=self.VALID_API_SECRET)
-            assert "order_id" in item
-            assert "order_price" in item
-            assert "order_size" in item
-            assert "order_side" in item
-            assert "order_symbol" in item
+            assert "id" in item
+            assert "price" in item
+            assert "symbol" in item
+            assert "side" in item
+            assert "size" in item
 
     def test_post(self, client):
         """
         Tests the POST method. Checks all of the possible error codes, and
         also checks that a valid request receives a 201 response with a
         location header that leads into the newly created resource.
-        """
-
         """
         valid = _get_order_json()
 
@@ -330,25 +328,26 @@ class TestOrders(object):
         # test with valid and see that it exists afterward
         resp = client.post(self.RESOURCE_URL, json=valid, headers=self.VALID_API_SECRET)
         assert resp.status_code == 201
-        # tän testin voi skippaa ehk ku ei meil oo tietoo siit order id etukätee
-        # assert resp.headers["Location"].endswith(self.RESOURCE_URL + valid["order_id"] + "/")
+        print(resp.headers["Location"])
         resp = client.get(resp.headers["Location"], headers=self.VALID_API_SECRET)
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert body["order_price"] == 3837.5
-        assert body["order_size"] == 1
-        assert body["order_symbol"] == "XBTUSD"
-        assert body["order_side"] == "Buy"
+        # print(body)
+        assert body["price"] == 3837.5
+        assert body["size"] == 20
+        assert body["symbol"] == "XBTUSD"
+        assert body["side"] == "Buy"
+        # we cant really know the id beforehand because it is assigned by BitMEX
+        assert "id" in body
 
-        # send same data again for 409
-        resp = client.post(self.RESOURCE_URL, json=valid)
-        assert resp.status_code == 409
+        _check_control_get_method("self", client, body, headers=self.VALID_API_SECRET)
+        _check_control_delete_method("delete", client, body, headers=self.VALID_API_SECRET)
 
-        # remove accountname field for 400
-        valid.pop("order_side")
-        resp = client.post(self.RESOURCE_URL, json=valid)
+        # remove side field for 400
+        valid.pop("side")
+        resp = client.post(self.RESOURCE_URL, json=valid, headers=self.VALID_API_SECRET)
         assert resp.status_code == 400
-        """
+
 
 class TestOrder(object):
     RESOURCE_URL = "/accounts/79z47uUikMoPe2eADqfJzRBu/orders/00000000-0000-0000-0000-000000000000/"

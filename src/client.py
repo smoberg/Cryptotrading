@@ -166,23 +166,32 @@ def positionmenu(symbol, apikey):
 def ordersmenu(apikey):
     """ Options for adding new order and for selecting one and deleting it or back to account """
 
-    orders = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/",
-                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
-
 
     while True:
+        orders = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/",
+                                    headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+
+        print("\n")
         for order in orders["items"]:
             print("Order ID: {}, Symbol: {}, Price: {}, Size: {}, Side: {}".format(order["id"], order["symbol"], order["price"], order["size"], order["side"]))
 
-        print("\nSelect order to modify by entering the order ID or enter(q) to return:")
+        print("\nSelect order to modify by entering the order ID, create a new order by entering(c) or enter(q) to return:")
 
         str = input()
+
+        if not next((order for order in orders["items"] if order['id'] == str), None) and str != 'c':
+            print("\nInvalid Order ID given\n\n")
+        else:
+            ordermenu(str, apikey)
+
         if str == 'q':
             break
-        for order in orders["items"]:
-            if str == order["id"]:
-                ordermenu(str, apikey)
-        print("Invalid ID given\n")
+        if str == 'c':
+            createorder(apikey)
+
+
+
+
 
 def ordermenu(id,apikey):
     """ Show one order, option to delete it or to go back to ordersmenu  """
@@ -197,14 +206,31 @@ def ordermenu(id,apikey):
         if str == 'q':
             break
         if str == 'd':
-            deleteorder()
+            deleteorder(id, apikey)
+            break
 
+def createorder(apikey):
+    try:
+        print("Input order symbol:")
+        symbol = input()
+        print("Input order price:")
+        price = float(input())
+        print("Input order size:")
+        size = int(input())
+        print("Input order side (Buy/Sell):")
+        side = input()
+        response = requests.post(API_URL + "/accounts/" + apikey + "/orders/",
+                                 headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"},
+                                 json={"symbol" : symbol, "price" : price, "size" : size, "side" : side})
+        print(response.text)
+    except TypeError:
+        print("Price must be float, size must be integer")
 
-def deleteorder():
+def deleteorder(id, apikey):
     response = requests.delete(API_URL + "/accounts/" + apikey + "/orders/" + id + "/",
                     headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"})
     if response.status_code == 204:
-        print("Order succesfully deleted.")
+        print("Order succesfully deleted.\n\n")
 
 def main():
     mainmenu()

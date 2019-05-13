@@ -59,7 +59,8 @@ def mainmenu():
     while True:
         choice = int(input("Give your selection please: "))
         if choice == 1:
-            positionsmenu("79z47uUikMoPe2eADqfJzRBu")
+            #positionsmenu("79z47uUikMoPe2eADqfJzRBu")
+            ordersmenu("79z47uUikMoPe2eADqfJzRBu")
             pass
         if choice == 2:
             # prompt from account schema
@@ -162,13 +163,48 @@ def positionmenu(symbol, apikey):
     except ValueError:
         print("Invalid type: leverage must be a float or 'Cross'")
 
-def ordersmenu():
+def ordersmenu(apikey):
     """ Options for adding new order and for selecting one and deleting it or back to account """
-    pass
 
-def ordermenu():
+    orders = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/",
+                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+
+
+    while True:
+        for order in orders["items"]:
+            print("Order ID: {}, Symbol: {}, Price: {}, Size: {}, Side: {}".format(order["id"], order["symbol"], order["price"], order["size"], order["side"]))
+
+        print("\nSelect order to modify by entering the order ID or enter(q) to return:")
+
+        str = input()
+        if str == 'q':
+            break
+        for order in orders["items"]:
+            if str == order["id"]:
+                ordermenu(str, apikey)
+        print("Invalid ID given\n")
+
+def ordermenu(id,apikey):
     """ Show one order, option to delete it or to go back to ordersmenu  """
-    pass
+    order = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/" + id + "/",
+                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+
+    print("Symbol: {}, Price: {}, Size: {}, Side: {}".format( order["symbol"], order["price"], order["size"], order["side"]))
+
+    print("Enter (d) to delete, or (q) to return:")
+    while True:
+        str = input()
+        if str == 'q':
+            break
+        if str == 'd':
+            deleteorder()
+
+
+def deleteorder():
+    response = requests.delete(API_URL + "/accounts/" + apikey + "/orders/" + id + "/",
+                    headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"})
+    if response.status_code == 204:
+        print("Order succesfully deleted.")
 
 def main():
     mainmenu()

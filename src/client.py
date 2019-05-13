@@ -52,11 +52,12 @@ def mainmenu():
     """ This menu has has option to go for price action or account related part of the api """
     os.system("clear")
     print("Hello, this is the client application for Cryptotrading API")
-    print("Select (1) if you want to use existing account")
-    print("Select (2) if you want to make a new account")
-    print("Select (3) if you want to get the most recent trade")
+
 
     while True:
+        print("Select (1) if you want to use existing account")
+        print("Select (2) if you want to make a new account")
+        print("Select (3) if you want to get the most recent trade")
         choice = int(input("Give your selection please: "))
         if choice == 1:
             #positionsmenu("79z47uUikMoPe2eADqfJzRBu")
@@ -108,6 +109,7 @@ def positionsmenu(apikey):
     """ get positions, give functionality to select one or to go back to accountmenu
 
     """
+    os.system("clear")
     response = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/positions/",
                             headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
 
@@ -166,7 +168,7 @@ def positionmenu(symbol, apikey):
 def ordersmenu(apikey):
     """ Options for adding new order and for selecting one and deleting it or back to account """
 
-
+    os.system("clear")
     while True:
         orders = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/",
                                     headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)

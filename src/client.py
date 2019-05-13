@@ -49,14 +49,14 @@ def submit_data(s, ctrl, data, headers=None):
 
 def mainmenu():
     """ This menu has has option to go for price action or account related part of the api """
-    print("Hello, this is the client application for Cryptotrading API")
+    # os.system('cls')
+    print("\nThis is the main menu of the client application for Cryptotrading API")
 
     while True:
         try:
-            print("\n")
-            print("Select (1) if you want to use existing account")
+            print("\nSelect (1) if you want to use existing account")
             print("Select (2) if you want to make a new account")
-            print("Select (3) if you want to get the most recent trade")
+            print("Select (3) if you want to get the most recent trade\n")
             choice = int(input("Give your selection please: "))
             if choice == 1:
                 select_account()
@@ -118,14 +118,14 @@ def create_account():
     """ Creates account by prompting from account schema and
         submitting data, might need some parameters like session idk.
     """
-    print("create acc")
+    # os.system("cls")
     resp = requests.get(API_URL + "/accounts/")
     body = resp.json()
     postbody = prompt_from_schema(body["@controls"]["add-account"])
     resp = requests.post(API_URL + body["@controls"]["add-account"]["href"],
                          data=json.dumps(postbody),
                          headers={"Content-type": "application/json"})
-    body = resp.json()
+
     if resp.status_code == 201:
         print("Account created, logging in to account")
         location = resp.headers["Location"]
@@ -138,6 +138,7 @@ def create_account():
     if resp.status_code == 400:
         pass
     if resp.status_code == 409:
+        body = resp.json()
         print(body["@error"]["@message"])
         print(body["@error"]["@messages"])
 
@@ -153,10 +154,10 @@ def accountmenu(url, headers):
         print(body["@error"]["@messages"])
         mainmenu()
 
-    print("Select (o) if you want go to orders")
+    print("\nSelect (o) if you want go to orders")
     print("Select (p) if you want to positions")
     print("Select (d) if you want to delete the account")
-    print("Select (q) if you want to go to main menu")
+    print("Select (q) if you want to go to main menu\n")
 
     while True:
         try:

@@ -1,6 +1,7 @@
 import json
 import requests
 import sys, os
+import time
 API_URL = "http://localhost:5000"
 
 def prompt_from_schema(ctrl):
@@ -26,7 +27,7 @@ def convert_value(value, schema_props):
     """ Function used to convert user input strings to right format.
         Based on the function introduced in exercise 4
     """
-     if schema_props["type"] == "number":
+    if schema_props["type"] == "number":
             try:
                 value = int(value)
             except ValueError:
@@ -56,23 +57,38 @@ def mainmenu():
     print("Select (3) if you want to get the most recent trade")
 
     while True:
-        choice = input("Give your selection please: ")
+        choice = int(input("Give your selection please: "))
         if choice == 1:
-            # get accounts
+            positionsmenu("79z47uUikMoPe2eADqfJzRBu")
             pass
         if choice == 2:
             # prompt from account schema
             pass
         if choice == 3:
-            # got to price action
-            pass
+            priceactionmenu()
+
 
 
 def priceactionmenu():
     """ This menu has option to get price action data"""
     os.system("clear")
     print("Input a trading pair to get its most recent pair or press (q) to go back to mainmenu")
-    pass
+    try:
+        str = input()
+        if str == 'q':
+            mainmenu()
+        else:
+            connected = True
+            prev_response = {}
+            while(connected == True):
+                response = requests.get(API_URL + '/priceaction/', params={"symbol" : str})
+                response = json.loads(response.text)
+
+                print("PRICE: {}, SIZE: {}, SIDE: {}".format(response["price"], response["size"], response["side"]))
+                time.sleep(2)
+    except TypeError:
+        print("")
+
 
 def create_account():
     """ Creates account by prompting from account schema and
@@ -87,17 +103,64 @@ def accountmenu():
     """
     pass
 
-def positionsmenu():
+def positionsmenu(apikey):
     """ get positions, give functionality to select one or to go back to accountmenu
 
     """
+    response = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/positions/",
+                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+
+    positions = response["items"]
+    for position in positions:
+        if position["leverage"] == 0:
+            leverage = "Cross"
+        else:
+            leverage = position["leverage"]
+        print("Symbol: {}, Size {}, Leverage: {}, Entry price: {}, Liquidation price : {}".format(position["symbol"],
+                                                                                                    position["size"],
+                                                                                                    leverage,
+                                                                                                    position["avgEntryPrice"],
+                                                                                                    position["liquidationPrice"]))
+
+    print("Select position to modify by entering position symbol or enter(q) to return:")
+    str = input()
+    if str == 'q':
+        mainmenu()
+    positionmenu(str, apikey)
+
     pass
 
-def positionmenu():
+def positionmenu(symbol, apikey):
     """ Show one position, give functionality to change leverage or to go back to positionsmenu
 
     """
-    pass
+    response = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/positions/" + symbol + "/",
+                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+
+    if response["leverage"] == 0:
+        leverage = "Cross"
+    else:
+        leverage = response["leverage"]
+    print("Symbol: {}, Size {}, Leverage: {}, Entry price: {}, Liquidation price : {}".format(response["symbol"],
+                                                                                                response["size"],
+                                                                                                leverage,
+                                                                                                response["avgEntryPrice"],
+                                                                                                response["liquidationPrice"]))
+    print("Input desired leverage for the position:")
+    try:
+        float_leverage = 0.0
+        leverage = input()
+        if leverage == 'Cross':
+            float_leverage = 0.0
+        else:
+            float_leverage = float(leverage)
+
+        response = requests.patch(API_URL + "/accounts/" + apikey + "/positions/" + symbol + "/",
+                                    headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"},
+                                    json={"leverage": float_leverage})
+
+    except ValueError:
+        print("Invalid type: leverage must be a float or 'Cross'")
 
 def ordersmenu():
     """ Options for adding new order and for selecting one and deleting it or back to account """

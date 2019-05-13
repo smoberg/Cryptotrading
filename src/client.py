@@ -171,7 +171,7 @@ def ordersmenu(apikey):
         orders = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/",
                                     headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
 
-        print("\n")
+        print("\nYour Orders:\n")
         for order in orders["items"]:
             print("Order ID: {}, Symbol: {}, Price: {}, Size: {}, Side: {}".format(order["id"], order["symbol"], order["price"], order["size"], order["side"]))
 
@@ -179,15 +179,18 @@ def ordersmenu(apikey):
 
         str = input()
 
-        if not next((order for order in orders["items"] if order['id'] == str), None) and str != 'c':
-            print("\nInvalid Order ID given\n\n")
-        else:
-            ordermenu(str, apikey)
-
         if str == 'q':
             break
         if str == 'c':
             createorder(apikey)
+        if next((order for order in orders["items"] if order['id'] == str), None) and str != 'c':
+            ordermenu(str, apikey)
+        elif str != 'c':
+            print("\nInvalid Order ID given\n")
+
+
+
+
 
 
 

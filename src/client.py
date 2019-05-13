@@ -16,11 +16,10 @@ def prompt_from_schema(ctrl):
     # field is the variable, props is the object under it which contains description and type.
     for field, props in schema["properties"].items():
         if field in required:
-            inputvalue = input(props["description" + ":"]) #
+            inputvalue = input(props["description"] + ":") #
             if inputvalue is not None:
                 inputvalue = convert_value(inputvalue, props)
             body[field] = inputvalue
-
     return body
 
 def convert_value(value, schema_props):
@@ -36,7 +35,7 @@ def convert_value(value, schema_props):
         value = int(value)
     return value
 
-def submit_data(s, ctrl, data, headers):
+def submit_data(s, ctrl, data, headers=None):
     """ Function used for sending post and put requests.
         Based on the function introduced in exercise 4
         takes in session, mason control, data and headers
@@ -50,25 +49,26 @@ def submit_data(s, ctrl, data, headers):
 
 def mainmenu():
     """ This menu has has option to go for price action or account related part of the api """
-    os.system("clear")
     print("Hello, this is the client application for Cryptotrading API")
 
-
     while True:
-        print("Select (1) if you want to use existing account")
-        print("Select (2) if you want to make a new account")
-        print("Select (3) if you want to get the most recent trade")
-        choice = int(input("Give your selection please: "))
-        if choice == 1:
-            #positionsmenu("79z47uUikMoPe2eADqfJzRBu")
-            ordersmenu("79z47uUikMoPe2eADqfJzRBu")
-            pass
-        if choice == 2:
-            # prompt from account schema
-            pass
-        if choice == 3:
-            priceactionmenu()
+        try:
+            print("\n")
+            print("Select (1) if you want to use existing account")
+            print("Select (2) if you want to make a new account")
+            print("Select (3) if you want to get the most recent trade")
+            choice = int(input("Give your selection please: "))
+            if choice == 1:
+                select_account()
 
+            if choice == 2:
+                create_account()
+
+            if choice == 3:
+                priceactionmenu()
+
+        except ValueError:
+            pass
 
 
 def priceactionmenu():
@@ -91,19 +91,93 @@ def priceactionmenu():
     except TypeError:
         print("")
 
+def select_account():
+    """
+    Selects account to login
+    """
+    resp = requests.get(API_URL + "/accounts/")
+    body = resp.json()
+    print("Here is a list of registered accounts:")
+    print("\n")
+    for account in body["items"]:
+        print(account["accountname"] + "\n")
+
+    while True:
+        choice = input("Select the account by entering it's name or go back with (q): ")
+        for account in body["items"]:
+
+            if choice == account["accountname"]:
+                api_secret = input("Please input your account's secret apikey: ")
+                accountmenu(API_URL + account["@controls"]["self"]["href"], headers={"api_secret": api_secret})
+
+            if choice == "q":
+                mainmenu()
+
 
 def create_account():
     """ Creates account by prompting from account schema and
         submitting data, might need some parameters like session idk.
     """
-    pass
+    print("create acc")
+    resp = requests.get(API_URL + "/accounts/")
+    body = resp.json()
+    postbody = prompt_from_schema(body["@controls"]["add-account"])
+    resp = requests.post(API_URL + body["@controls"]["add-account"]["href"],
+                         data=json.dumps(postbody),
+                         headers={"Content-type": "application/json"})
+    body = resp.json()
+    if resp.status_code == 201:
+        print("Account created, logging in to account")
+        location = resp.headers["Location"]
+        headers = {"api_secret": postbody["api_secret"]}
+        accountmenu(location, headers)
 
-def accountmenu():
+    # print error and call create account again?
+    if resp.status_code == 415:
+        pass
+    if resp.status_code == 400:
+        pass
+    if resp.status_code == 409:
+        print(body["@error"]["@message"])
+        print(body["@error"]["@messages"])
+
+def accountmenu(url, headers):
     """ Option to delete account
         Options to go for orders menu or to positions menu
         Option to go to main menu (log out)
     """
-    pass
+    resp = requests.get(url, headers=headers)
+    body = resp.json()
+    if resp.status_code == 401:
+        print(body["@error"]["@message"])
+        print(body["@error"]["@messages"])
+        mainmenu()
+
+    print("Select (o) if you want go to orders")
+    print("Select (p) if you want to positions")
+    print("Select (d) if you want to delete the account")
+    print("Select (q) if you want to go to main menu")
+
+    while True:
+        try:
+            choice = input("Enter your choice: ")
+            choice = choice.lower()
+            if choice == "o":
+                ordersmenu(body["@controls"]["orders-all"]["href"], headers)
+            if choice == "p":
+                positionsmenu(body["@controls"]["orders-all"]["href"], headers)
+            if choice == "d":
+                resp = requests.delete(API_URL + body["@controls"]["delete"]["href"], headers=headers)
+                if resp.status_code == 204:
+                    print("deletion was successful")
+                    mainmenu()
+            if choice == "q":
+                mainmenu()
+        except AttributeError:
+            print("not a valid choice")
+            pass
+
+
 
 def positionsmenu(apikey):
     """ get positions, give functionality to select one or to go back to accountmenu

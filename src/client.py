@@ -240,84 +240,81 @@ def positionmenu(symbol, apikey):
     except ValueError:
         print("Invalid type: leverage must be a float or 'Cross'")
 
-def ordersmenu(apikey):
+def ordersmenu(url, headers):
     """ Options for adding new order and for selecting one and deleting it or back to account """
 
-    os.system("clear")
+    resp = requests.get(API_URL + url, headers=headers)
+    body = resp.json()
+    print("\nYour Orders:\n")
+    if len(body["items"]) > 0:
+        for order in body["items"]:
+            print("Order ID: {}\nSymbol: {}\nPrice: {}\nSize: {}\nSide: {}\n".format(order["id"],
+                                                                                            order["symbol"],
+                                                                                            order["price"],
+                                                                                            order["size"],
+                                                                                            order["side"]))
     while True:
-        orders = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/",
-                                    headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+        try:
+            print("\nSelect order by entering the order ID, create a new order by entering(c) or enter(q) to return:")
 
-        print("\nYour Orders:\n")
-        for order in orders["items"]:
-            print("Order ID: {}, Symbol: {}, Price: {}, Size: {}, Side: {}".format(order["id"], order["symbol"], order["price"], order["size"], order["side"]))
+            choice = input("Enter your selection: ")
 
-        print("\nSelect order to modify by entering the order ID, create a new order by entering(c) or enter(q) to return:")
+            if choice == 'q':
+                accountmenu(API_URL + body["@controls"]["account"]["href"], headers=headers)
 
-        str = input()
+            if choice == 'c':
+                createorder(body["@controls"]["add-order"], headers)
 
-        if str == 'q':
-            break
-        if str == 'c':
-            createorder(apikey)
-        if next((order for order in orders["items"] if order['id'] == str), None) and str != 'c':
-            ordermenu(str, apikey)
-        elif str != 'c':
-            print("\nInvalid Order ID given\n")
+            if next((order for order in body["items"] if order['id'] == choice), None) and choice != 'c':
+                ordermenu(order["@controls"]["self"]["href"], headers)
 
+            elif str != 'c':
+                print("\nInvalid Order ID given\n")
 
+        except AttributeError:
+            pass
 
 
 
-
-
-
-
-def ordermenu(id,apikey):
+def ordermenu(url, headers):
     """ Show one order, option to delete it or to go back to ordersmenu  """
-    order = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/orders/" + id + "/",
-                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
 
-    print("Symbol: {}, Price: {}, Size: {}, Side: {}".format( order["symbol"], order["price"], order["size"], order["side"]))
+    resp = requests.get(API_URL + url, headers=headers)
+    body = resp.json()
+
+    print("Symbol: {}\n Price: {}\n Size: {}\n Side: {}\n".format(body["symbol"], body["price"], body["size"], body["side"]))
 
     print("Enter (d) to delete, or (q) to return:")
     while True:
-        str = input()
+        str = input("Enter your selection: ")
         if str == 'q':
-            break
+            ordersmenu(body["@controls"]["orders-all"]["href"], headers)
         if str == 'd':
-            deleteorder(id, apikey)
-            break
+            resp = requests.delete(API_URL + body["@controls"]["delete"]["href"], headers=headers)
+            if resp.status_code == 204:
+                print("deletion was successful")
+                ordersmenu(body["@controls"]["orders-all"]["href"], headers)
 
-def createorder(apikey):
-    try:
-        print("Input order symbol:")
-        symbol = input()
-        print("Input order price:")
-        price = float(input())
-        print("Input order size:")
-        size = int(input())
-        print("Input order side (Buy/Sell):")
-        side = input()
-        response = requests.post(API_URL + "/accounts/" + apikey + "/orders/",
-                                 headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"},
-                                 json={"symbol" : symbol, "price" : price, "size" : size, "side" : side})
-        print(response.text)
-    except TypeError:
-        print("Price must be float, size must be integer")
+def createorder(ctrl, headers):
+    """ creates order """
+    postbody = prompt_from_schema(ctrl)
+    # print(postbody)
+    response = requests.post(API_URL + ctrl["href"], json=postbody, headers=headers)
 
-def deleteorder(id, apikey):
-    response = requests.delete(API_URL + "/accounts/" + apikey + "/orders/" + id + "/",
-                    headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"})
-    if response.status_code == 204:
-        print("Order succesfully deleted.\n\n")
+    if response.status_code == 201:
+        print("Order created")
+        ordersmenu(ctrl["href"], headers)
+
+    else:
+        body = response.json()
+        print(body["@error"]["@message"])
+        print(body["@error"]["@messages"])
+        ordersmenu(ctrl["href"], headers)
 
 def main():
     mainmenu()
     # vois mahollisesti käyttää ilma sessionia nii ois simppelimpi ehkä, emt
-    with requests.Session() as s:
-        resp = s.get(API_URL)
-        body = resp.json()
+
 
 
 if __name__ == '__main__':

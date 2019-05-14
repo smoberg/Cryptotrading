@@ -176,6 +176,7 @@ class MasonControls(MasonBuilder):
                         title="delete this order")
 
 
+
 @app.route("/", methods=["GET"])
 def entrypoint():
     """ This is the view function for the API entry point """
@@ -204,7 +205,7 @@ class Accounts(Resource):
             userlist.append(userbody)
 
         body = MasonControls(items=userlist)
-        body.add_control("self", href=api.url_for(Accounts))
+
         body.add_control_add_account()
         return Response(json.dumps(body), status=200, mimetype=MASON)
 
@@ -328,6 +329,7 @@ class OrdersResource(Resource):
         if len(orderlist_q) == 0: # if there are no orders made by the account.
             body = MasonControls(items=orderlist)
             body.add_control_add_order(apikey)
+            body.add_control("self", api.url_for(OrdersResource, apikey=apikey))
             return Response(json.dumps(body), status=200, mimetype=MASON)
 
         for order in orderlist_q:
@@ -342,6 +344,7 @@ class OrdersResource(Resource):
 
         body = MasonControls(items=orderlist)
         body.add_control_add_order(apikey)
+        body.add_control("self", api.url_for(OrdersResource, apikey=apikey))
         return Response(json.dumps(body), status=200, mimetype=MASON)
 
 

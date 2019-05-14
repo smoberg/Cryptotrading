@@ -14,6 +14,6 @@ Go to src directory and run command:
 
 # Performing tests the database and the Api
 Tests for the API and the database were done using pytest.
-To run all the tests use command `pytest` inside src directory
+To run all the tests, use command `pytest` inside src directory
 
 

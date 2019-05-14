@@ -2,12 +2,14 @@ import json
 import requests
 import sys, os
 import time
+# URL of the API
 API_URL = "http://localhost:5000"
 
 def prompt_from_schema(ctrl):
     """ Function used to get inputs from the user based on the schema
         Based on the function introduced in exercise 4.
-        Takes in the Mason control for POST/PUT request
+        Takes in the Mason control for POST/PATCH request
+        Returns valid json body according to schema
     """
     body = {}
     if "schema" in ctrl:
@@ -23,8 +25,8 @@ def prompt_from_schema(ctrl):
     return body
 
 def convert_value(value, schema_props):
-    """ Function used to convert user input strings to right format.
-        Based on the function introduced in exercise 4
+    """ Helpper function used to convert user input strings to right format.
+        Based on the function introduced in exercise 4.
     """
     if schema_props["type"] == "number":
             try:
@@ -37,7 +39,8 @@ def convert_value(value, schema_props):
 
 
 def mainmenu():
-    """ This menu has has option to go for price action or account related part of the api """
+    """ Main menu of the client, jumps to different menus based on the user input.
+    """
     # os.system('cls')
     print("\nThis is the main menu of the client application for Cryptotrading API")
 
@@ -60,7 +63,9 @@ def mainmenu():
             pass
 
 def priceactionmenu():
-    """ This menu has option to get price action data"""
+    """ Menu function for price action data. Asks the user for trading pair
+        and queries price action data with that symbol every 2 seconds.
+    """
     print("Input a trading pair to get its most recent pair or press (q) to go back to mainmenu:")
 
     try:
@@ -81,7 +86,8 @@ def priceactionmenu():
 
 def select_account():
     """
-    Selects account to login
+    Shows user the accounts registered to the API. User has option to login to account
+    or go back to main menu.
     """
     resp = requests.get(API_URL + "/accounts/")
     body = resp.json()
@@ -103,8 +109,9 @@ def select_account():
 
 
 def create_account():
-    """ Creates account by prompting from account schema and
-        submitting data, might need some parameters like session idk.
+    """ Creates account by using prompt from schema function and
+        submits the data. After creating an account logins to that account.
+        If creation fails. Goes back to mainmenu
     """
     # os.system("cls")
     resp = requests.get(API_URL + "/accounts/")
@@ -131,9 +138,9 @@ def create_account():
         print(body["@error"]["@messages"])
 
 def accountmenu(url, headers):
-    """ Option to delete account
-        Options to go for orders menu or to positions menu
-        Option to go to main menu (log out)
+    """ Takes in URL for the account resource and headers containing
+        the api_secret that user has submitted. Has options to go to orders,
+        positions, main menu and to delete the account.
     """
     resp = requests.get(url, headers=headers)
     body = resp.json()
@@ -169,7 +176,9 @@ def accountmenu(url, headers):
 
 
 def positionsmenu(url, headers):
-    """ get positions, give functionality to select one or to go back to accountmenu
+    """ Takes in url for the resouce and the headers containing api_secret.
+        Shows the active positions to the user. Gives option to select a position
+        or go back to main menu.
 
     """
     response = requests.get(API_URL + url, headers=headers)
@@ -204,7 +213,10 @@ def positionsmenu(url, headers):
             pass
 
 def positionmenu(url, headers):
-    """ Show one position, give functionality to change leverage or to go back to positionsmenu
+    """ Takes in url for the resouce and the headers containing api_secret.
+        Shows selected position to user and has the option to edit the leverage
+        or go back to accountmenu. Body for leverage change is generated with prompt_from_schema
+        upon successful editing goes back to positionsmenu, else prints the error message
 
     """
     response = requests.get(API_URL + url, headers=headers)
@@ -246,7 +258,11 @@ def positionmenu(url, headers):
             pass
 
 def ordersmenu(url, headers):
-    """ Options for adding new order and for selecting one and deleting it or back to account """
+    """ Takes in url for the resouce and the headers containing api_secret.
+        Shows the user their active orders. Has option to create new order,
+        select existing order or to go back to accountmenu.
+
+    """
 
     resp = requests.get(API_URL + url, headers=headers)
     body = resp.json()
@@ -282,7 +298,11 @@ def ordersmenu(url, headers):
 
 
 def ordermenu(url, headers):
-    """ Show one order, option to delete it or to go back to ordersmenu  """
+    """  Takes in url for the resouce and the headers containing api_secret.
+         Shows the selected order and gives option to delete it or to go back
+         to ordersmenu. Upon succesful deletion goes back to ordersmenu
+
+    """
 
     resp = requests.get(API_URL + url, headers=headers)
     body = resp.json()
@@ -301,7 +321,11 @@ def ordermenu(url, headers):
                 ordersmenu(body["@controls"]["orders-all"]["href"], headers)
 
 def createorder(ctrl, headers):
-    """ creates order """
+    """ Takes in url for the resouce and the headers containing api_secret.
+        Creates valid order body using prompt_from_schema and posts the body.
+        Upon succesful creation, goes back to ordersmenu. Upon unsuccesful creation,
+        prints error messages and goes back to ordersmenu.
+    """
     postbody = prompt_from_schema(ctrl)
     # print(postbody)
     response = requests.post(API_URL + ctrl["href"], json=postbody, headers=headers)

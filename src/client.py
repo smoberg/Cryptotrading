@@ -35,17 +35,6 @@ def convert_value(value, schema_props):
         value = int(value)
     return value
 
-def submit_data(s, ctrl, data, headers=None):
-    """ Function used for sending post and put requests.
-        Based on the function introduced in exercise 4
-        takes in session, mason control, data and headers
-    """
-    resp = s.request(
-        ctrl["method"],
-        API_URL + ctrl["href"],
-        data=json.dumps(data),
-        headers = headers)
-    return resp
 
 def mainmenu():
     """ This menu has has option to go for price action or account related part of the api """
@@ -70,11 +59,10 @@ def mainmenu():
         except ValueError:
             pass
 
-
 def priceactionmenu():
     """ This menu has option to get price action data"""
-    os.system("clear")
-    print("Input a trading pair to get its most recent pair or press (q) to go back to mainmenu")
+    print("Input a trading pair to get its most recent pair or press (q) to go back to mainmenu:")
+
     try:
         str = input()
         if str == 'q':
@@ -89,7 +77,7 @@ def priceactionmenu():
                 print("PRICE: {}, SIZE: {}, SIDE: {}".format(response["price"], response["size"], response["side"]))
                 time.sleep(2)
     except TypeError:
-        print("")
+        print("not a valid symbol")
 
 def select_account():
     """
@@ -166,7 +154,7 @@ def accountmenu(url, headers):
             if choice == "o":
                 ordersmenu(body["@controls"]["orders-all"]["href"], headers)
             if choice == "p":
-                positionsmenu(body["@controls"]["orders-all"]["href"], headers)
+                positionsmenu(body["@controls"]["positions-all"]["href"], headers)
             if choice == "d":
                 resp = requests.delete(API_URL + body["@controls"]["delete"]["href"], headers=headers)
                 if resp.status_code == 204:
@@ -180,65 +168,82 @@ def accountmenu(url, headers):
 
 
 
-def positionsmenu(apikey):
+def positionsmenu(url, headers):
     """ get positions, give functionality to select one or to go back to accountmenu
 
     """
-    os.system("clear")
-    response = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/positions/",
-                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+    response = requests.get(API_URL + url, headers=headers)
+    body = response.json()
 
-    positions = response["items"]
-    for position in positions:
-        if position["leverage"] == 0:
-            leverage = "Cross"
-        else:
-            leverage = position["leverage"]
-        print("Symbol: {}, Size {}, Leverage: {}, Entry price: {}, Liquidation price : {}".format(position["symbol"],
-                                                                                                    position["size"],
-                                                                                                    leverage,
-                                                                                                    position["avgEntryPrice"],
-                                                                                                    position["liquidationPrice"]))
+    print("\nYour Positions:\n")
+    if len(body["items"]) > 0:
+        for position in body["items"]:
+            # print(position)
+            if position["leverage"] == 0:
+                leverage = "Cross"
+            else:
+                leverage = position["leverage"]
+            print("\nSymbol: {}\nSize {}\nLeverage: {}\nEntry price: {}\nLiquidation price: {}".format(position["symbol"],
+                                                                                                        position["size"],
+                                                                                                        leverage,
+                                                                                                        position["avgEntryPrice"],
+                                                                                                        position["liquidationPrice"]))
+    while True:
+        try:
+            print("\nSelect position to modify by entering position symbol or enter(q) to return:")
+            choice = input("Enter your selection: ")
+            if choice == 'q':
+                accountmenu(API_URL + body["@controls"]["account"]["href"], headers)
+            else:
+                for position in body["items"]:
+                    if position["symbol"] == choice:
+                        positionmenu(position["@controls"]["self"]["href"], headers)
 
-    print("Select position to modify by entering position symbol or enter(q) to return:")
-    str = input()
-    if str == 'q':
-        mainmenu()
-    positionmenu(str, apikey)
+        except AttributeError:
+            print("\nInvalid Selection\n")
+            pass
 
-    pass
-
-def positionmenu(symbol, apikey):
+def positionmenu(url, headers):
     """ Show one position, give functionality to change leverage or to go back to positionsmenu
 
     """
-    response = json.loads(requests.get(API_URL + "/accounts/" + apikey + "/positions/" + symbol + "/",
-                            headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"}).text)
+    response = requests.get(API_URL + url, headers=headers)
+    body = response.json()
 
-    if response["leverage"] == 0:
+    if body["leverage"] == 0:
         leverage = "Cross"
     else:
-        leverage = response["leverage"]
-    print("Symbol: {}, Size {}, Leverage: {}, Entry price: {}, Liquidation price : {}".format(response["symbol"],
-                                                                                                response["size"],
+        leverage = body["leverage"]
+    print("\nSelected position:\n")
+    print("Symbol: {}\nSize {}\nLeverage: {}\nEntry price: {}\nLiquidation price: {}\n".format(body["symbol"],
+                                                                                                body["size"],
                                                                                                 leverage,
-                                                                                                response["avgEntryPrice"],
-                                                                                                response["liquidationPrice"]))
-    print("Input desired leverage for the position:")
-    try:
-        float_leverage = 0.0
-        leverage = input()
-        if leverage == 'Cross':
-            float_leverage = 0.0
-        else:
-            float_leverage = float(leverage)
+                                                                                                body["avgEntryPrice"],
+                                                                                                body["liquidationPrice"]))
+    print("Change leverage of the position with (c) or go back with (q)")
+    while True:
+        try:
 
-        response = requests.patch(API_URL + "/accounts/" + apikey + "/positions/" + symbol + "/",
-                                    headers={"api_secret" : "j9ey6Lk2xR6V-qJRfN-HqD2nfOGme0FnBddp1cxqK6k8Gbjd"},
-                                    json={"leverage": float_leverage})
+            leverage = input("Enter your selection: ")
+            if leverage == "q":
+                positionsmenu(body["@controls"]["positions-all"]["href"], headers)
 
-    except ValueError:
-        print("Invalid type: leverage must be a float or 'Cross'")
+            if leverage == "c":
+                postbody = prompt_from_schema(body["@controls"]["edit"])
+                response = requests.patch(API_URL + url, json=postbody, headers=headers)
+
+                if response.status_code == 204:
+                    print("Leverage change successful\n")
+                    positionsmenu(body["@controls"]["positions-all"]["href"], headers)
+                else:
+                    body = response.json()
+                    print(body["@error"]["@message"])
+                    print(body["@error"]["@messages"])
+            else:
+                print("Invalid selection\n")
+        except AttributeError:
+            print("Invalid selection\n")
+            pass
 
 def ordersmenu(url, headers):
     """ Options for adding new order and for selecting one and deleting it or back to account """
@@ -265,13 +270,13 @@ def ordersmenu(url, headers):
             if choice == 'c':
                 createorder(body["@controls"]["add-order"], headers)
 
-            if next((order for order in body["items"] if order['id'] == choice), None) and choice != 'c':
-                ordermenu(order["@controls"]["self"]["href"], headers)
-
-            elif str != 'c':
-                print("\nInvalid Order ID given\n")
+            else:
+                for order in body["items"]:
+                    if choice == order["id"]:
+                        ordermenu(order["@controls"]["self"]["href"], headers)
 
         except AttributeError:
+            print("\nInvalid Order ID given\n")
             pass
 
 
@@ -282,7 +287,7 @@ def ordermenu(url, headers):
     resp = requests.get(API_URL + url, headers=headers)
     body = resp.json()
 
-    print("Symbol: {}\n Price: {}\n Size: {}\n Side: {}\n".format(body["symbol"], body["price"], body["size"], body["side"]))
+    print("\nOrder ID: {}\nSymbol: {}\nPrice: {}\nSize: {}\nSide: {}\n".format(body["id"], body["symbol"], body["price"], body["size"], body["side"]))
 
     print("Enter (d) to delete, or (q) to return:")
     while True:
@@ -313,7 +318,7 @@ def createorder(ctrl, headers):
 
 def main():
     mainmenu()
-    # vois mahollisesti käyttää ilma sessionia nii ois simppelimpi ehkä, emt
+
 
 
 

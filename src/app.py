@@ -330,6 +330,7 @@ class OrdersResource(Resource):
             body = MasonControls(items=orderlist)
             body.add_control_add_order(apikey)
             body.add_control("self", api.url_for(OrdersResource, apikey=apikey))
+            body.add_control_account(apikey)
             return Response(json.dumps(body), status=200, mimetype=MASON)
 
         for order in orderlist_q:

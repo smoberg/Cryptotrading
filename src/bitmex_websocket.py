@@ -17,6 +17,9 @@ from util.api_key import generate_nonce, generate_signature
 # On connect, it synchronously asks for a push of all this data then returns.
 # Right after, the MM can start using its data. It will be updated in realtime, so the MM can
 # poll really often if it wants.
+
+# This is a modified version from the python package bitmex-ws version 0.3.1. Juuso Säärelä added a public positions function to include
+# open positions into the BitMEX websocket API.
 class BitMEXWebsocket:
 
     # Don't grow a table larger than this amount. Helps cap memory usage.

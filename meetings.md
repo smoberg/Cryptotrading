@@ -62,11 +62,12 @@ APIARY STUFF
 * **GRADE:** *To be filled by course staff*
 
 ### Minutes
-*Summary of what was discussed during the meeting*
-Implementation of the API was not done yet. To speed up the process to make the deadline. Commandline client was approved.
-### Action points
-*List here the actions points discussed with assistants*
+Implementation of the API was not done yet. To speed up the process to make the deadline, commandline client was approved. Some extra time to complete the project was given.
 
+### Action points
+* Finish the implementation fast
+* Commandline client to speed up development
+* Divide work
 
 ### Comments from staff
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*

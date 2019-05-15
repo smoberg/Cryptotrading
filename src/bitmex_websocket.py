@@ -18,7 +18,7 @@ from util.api_key import generate_nonce, generate_signature
 # Right after, the MM can start using its data. It will be updated in realtime, so the MM can
 # poll really often if it wants.
 
-# This is a modified version from the python package bitmex-ws version 0.3.1. Juuso Säärelä added a public positions function to include
+# This is a modified version from the python package bitmex-ws version 0.3.1. Juuso added a public positions function to include
 # open positions into the BitMEX websocket API.
 class BitMEXWebsocket:
 
@@ -89,7 +89,7 @@ class BitMEXWebsocket:
         '''Get your margin details.'''
         return self.data['margin'][0]
     def positions(self):
-        '''Get your positions.'''
+        '''Get your positions. This has been added by Juuso.'''
         return self.data['position']
     def market_depth(self):
         '''Get market depth (orderbook). Returns all levels.'''
